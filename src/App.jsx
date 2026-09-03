@@ -127,7 +127,9 @@ export default function App() {
       setSnapshot(memorySnapshot())
       speak(result.text)
     } catch (error) {
-      const msg = error.message || 'No pude completar eso.'
+      const msg = settings.apiKey
+        ? (error.message || 'Gemini respondió con un error. Recarga e inténtalo de nuevo.')
+        : 'Necesito tu clave gratis de Gemini para poder hacer las cosas.'
       setMessages((prev) =>
         prev.map((m) => (m.id === pending.id ? { ...m, text: msg, pending: false, error: true } : m)),
       )

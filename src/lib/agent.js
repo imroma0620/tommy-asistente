@@ -1,7 +1,12 @@
 import { DAY_NAMES, isoDate, memorySnapshot, weekDates } from './storage'
 import { executeTool, TOOL_DECLARATIONS } from './tools'
 
-const MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite']
+const MODELS = [
+  'gemini-3.5-flash-lite',
+  'gemini-3.5-flash',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
+]
 
 function weekContext() {
   return weekDates(0)
@@ -95,13 +100,25 @@ export async function talkToTommy({ apiKey, history, text, audio }) {
   let lastError
   for (const model of MODELS) {
     try {
-      return await runLoop(apiKey, model, contents)
+      return await runLoop(apiKey, model, structuredClone(contents))
     } catch (error) {
       lastError = error
-      if (error.status !== 404 && error.status !== 400) break
+      if (!shouldTryNextModel(error)) break
     }
   }
   throw lastError || new Error('No pude contactar a Gemini.')
+}
+
+function shouldTryNextModel(error) {
+  const status = error?.status
+  const msg = String(error?.message || '').toLowerCase()
+  if (status === 404 || status === 400) return true
+  return (
+    msg.includes('no longer available') ||
+    msg.includes('not found') ||
+    msg.includes('is not supported') ||
+    msg.includes('not available')
+  )
 }
 
 async function runLoop(apiKey, model, contents) {
