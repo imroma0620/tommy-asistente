@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bell, CalendarDays, FolderKanban, Lightbulb, MessageSquare, Mic, Paperclip, Plus, Send, Settings as SettingsIcon, Smartphone, Square, Volume2, X } from 'lucide-react'
+import { Bell, CalendarDays, FolderKanban, Lightbulb, MessageSquare, Mic, Paperclip, PanelLeft, Plus, Send, Settings as SettingsIcon, Smartphone, Square, Volume2, X } from 'lucide-react'
 import Settings from './components/Settings'
 import Agenda from './components/Agenda'
 import Recordatorios from './components/Recordatorios'
@@ -67,7 +67,9 @@ export default function App() {
   const [recordSecs, setRecordSecs] = useState(0)
   const [showSettings, setShowSettings] = useState(!String(getSettings().apiKey || '').startsWith('gsk_'))
   const [showPhone, setShowPhone] = useState(false)
+  const [inboxOpen, setInboxOpen] = useState(false)
   const [showCalendar, setShowCalendar] = useState(false)
+  const skipPersist = useRef(false)
   const [snapshot, setSnapshot] = useState(memorySnapshot)
   const [calOk, setCalOk] = useState(calendarConnected)
   const [events, setEvents] = useState([])
@@ -120,8 +122,13 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    saveConversationMessages(activeRef.current, messages)
-    setConversations(getConversations())
+    if (skipPersist.current) {
+      skipPersist.current = false
+      setConversations(getConversations())
+    } else {
+      saveConversationMessages(activeRef.current, messages)
+      setConversations(getConversations())
+    }
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
@@ -291,26 +298,32 @@ export default function App() {
   }
 
   const openConversation = (id) => {
-    if (id === activeId) return
-    saveConversationMessages(activeId, messages)
-    setActiveId(id)
-    setActiveConvo(id)
-    const conv = getConversations().find((c) => c.id === id)
-    const next = (conv?.messages || []).map((m) => (m.id === 'welcome' ? WELCOME : m))
-    setMessages(next.length ? next : [WELCOME])
+    if (id !== activeId) {
+      saveConversationMessages(activeId, messages)
+      skipPersist.current = true
+      setActiveId(id)
+      setActiveConvo(id)
+      const conv = getConversations().find((c) => c.id === id)
+      const next = (conv?.messages || []).map((m) => (m.id === 'welcome' ? WELCOME : m))
+      setMessages(next.length ? next : [WELCOME])
+    }
+    setInboxOpen(false)
     setTab('chat')
   }
 
   const newConversation = () => {
     saveConversationMessages(activeId, messages)
+    skipPersist.current = true
     const conv = createConversation(WELCOME)
     setActiveConvo(conv.id)
     setConversations(getConversations())
     setMessages([WELCOME])
+    setInboxOpen(false)
     setTab('chat')
   }
 
   const removeConversation = (id) => {
+    skipPersist.current = true
     const fallback = deleteConversation(id)
     setConversations(getConversations())
     const nextId = getActiveId()
@@ -328,6 +341,9 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <div className="brand">
+          <button className="icon-btn" onClick={() => setInboxOpen(true)} title="Conversaciones" aria-label="Abrir conversaciones">
+            <PanelLeft size={18} />
+          </button>
           <img className="avatar" src="./tommy.png" alt="Tommy" />
           <div>
             <h1>Tommy</h1>
@@ -335,8 +351,8 @@ export default function App() {
           </div>
         </div>
         <div className="top-actions">
-          <button className="convo-new header-new" onClick={newConversation} title="Nueva conversación">
-            <Plus size={16} /> Nueva
+          <button className="icon-btn" onClick={newConversation} title="Nueva conversación" aria-label="Nueva conversación">
+            <Plus size={18} />
           </button>
           <button className="icon-btn" onClick={() => setShowPhone(true)} title="Celular">
             <Smartphone size={18} />
@@ -361,15 +377,43 @@ export default function App() {
 
       {errorBanner && <div className="banner">{errorBanner}</div>}
 
+      <Conversations
+        open={inboxOpen}
+        onClose={() => setInboxOpen(false)}
+        items={conversations}
+        activeId={activeId}
+        onNew={newConversation}
+        onSelect={openConversation}
+        onDelete={removeConversation}
+      />
+
       {tab === 'chat' && (
-        <div className="chat-layout">
-          <Conversations
-            items={conversations}
-            activeId={activeId}
-            onNew={newConversation}
-            onSelect={openConversation}
-            onDelete={removeConversation}
-          />
+        <div
+          className="chat-layout"
+          onTouchStart={(e) => {
+            if (inboxOpen) return
+            const x = e.touches[0].clientX
+            const y = e.touches[0].clientY
+            if (x > 28) return
+            const node = e.currentTarget
+            const move = (ev) => {
+              const dx = ev.touches[0].clientX - x
+              const dy = ev.touches[0].clientY - y
+              if (Math.abs(dx) < 12 || Math.abs(dx) < Math.abs(dy)) return
+              if (dx > 48) {
+                node.removeEventListener('touchmove', move)
+                node.removeEventListener('touchend', end)
+                setInboxOpen(true)
+              }
+            }
+            const end = () => {
+              node.removeEventListener('touchmove', move)
+              node.removeEventListener('touchend', end)
+            }
+            node.addEventListener('touchmove', move, { passive: true })
+            node.addEventListener('touchend', end)
+          }}
+        >
           <main className="thread">
             <div className="dash">
               <button type="button" className="dash-card" onClick={() => setTab('agenda')}>
