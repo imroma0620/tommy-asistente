@@ -1,4 +1,6 @@
-export default function Settings({ settings, onChange, onClose }) {
+import Style from './Style'
+
+export default function Settings({ settings, profile, onChange, onProfile, onClose }) {
   return (
     <div className="sheet-overlay" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
@@ -6,25 +8,19 @@ export default function Settings({ settings, onChange, onClose }) {
           <h2>Ajustes</h2>
           <button className="icon-btn" onClick={onClose} aria-label="Cerrar">✕</button>
         </div>
-        <p className="muted">
-          Tommy usa el plan gratis de Gemini. Entra a{' '}
-          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">
-            Google AI Studio
-          </a>
-          , crea una clave y pégala aquí. Se guarda solo en este teléfono o computadora.
-        </p>
-        <p className="muted">
-          No actives facturación ni agregues tarjeta. Si Google te pide pagar, cancela: con el plan Free no hay cobro. Si se acaba la cuota del día, Tommy se pausa hasta mañana, no te factura.
-        </p>
+
         <label className="field">
-          <span>Clave de Gemini</span>
+          <span>Clave de Groq</span>
           <input
             type="password"
             value={settings.apiKey}
-            placeholder="AIza..."
+            placeholder="gsk_..."
+            autoComplete="off"
             onChange={(e) => onChange({ apiKey: e.target.value.trim() })}
           />
         </label>
+        <p className="muted">Gratis, sin tarjeta. Empieza por gsk_. En el iPhone pégala una vez: esa copia es del teléfono y no necesita el PC.</p>
+
         <label className="check">
           <input
             type="checkbox"
@@ -33,6 +29,9 @@ export default function Settings({ settings, onChange, onClose }) {
           />
           Leer las respuestas de Tommy en voz alta
         </label>
+
+        <h3>Cómo quieres que hable y decida</h3>
+        {profile && onProfile && <Style profile={profile} onChange={onProfile} />}
       </div>
     </div>
   )

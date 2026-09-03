@@ -10,6 +10,8 @@ import {
   weekDates,
   isoDate,
   DAY_NAMES,
+  getProfile,
+  saveProfile,
 } from './storage'
 
 export const TOOL_DECLARATIONS = [
@@ -216,6 +218,53 @@ export const TOOL_DECLARATIONS = [
       },
     },
   },
+  {
+    name: 'actualizar_estilo',
+    description: 'Guarda cómo habla, piensa y actúa el usuario para que Tommy lo imite.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        nombre: { type: 'STRING' },
+        comoHabla: { type: 'STRING' },
+        comoPiensa: { type: 'STRING' },
+        comoActua: { type: 'STRING' },
+        reglas: { type: 'ARRAY', items: { type: 'STRING' } },
+        ejemplos: { type: 'ARRAY', items: { type: 'STRING' } },
+        evitar: { type: 'ARRAY', items: { type: 'STRING' } },
+      },
+    },
+  },
+  {
+    name: 'recordar_preferencia',
+    description: 'Guarda un hecho o preferencia permanente sobre el usuario.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        hecho: { type: 'STRING' },
+      },
+      required: ['hecho'],
+    },
+  },
+  {
+    name: 'listar_calendario',
+    description: 'Lee los próximos eventos del Google Calendar conectado.',
+    parameters: { type: 'OBJECT', properties: {} },
+  },
+  {
+    name: 'crear_evento_calendario',
+    description: 'Crea un evento en Google Calendar. fecha YYYY-MM-DD, hora HH:MM.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        titulo: { type: 'STRING' },
+        fecha: { type: 'STRING' },
+        hora: { type: 'STRING' },
+        duracionMin: { type: 'NUMBER' },
+        nota: { type: 'STRING' },
+      },
+      required: ['titulo', 'fecha'],
+    },
+  },
 ]
 
 function findProject(nombre) {
@@ -389,6 +438,23 @@ export function executeTool(name, args = {}) {
           return true
         }),
       }
+    }
+    case 'actualizar_estilo': {
+      const current = getProfile()
+      saveProfile({
+        ...current,
+        ...Object.fromEntries(Object.entries(args).filter(([, value]) => value !== undefined && value !== '')),
+        reglas: args.reglas || current.reglas,
+        ejemplos: args.ejemplos || current.ejemplos,
+        evitar: args.evitar || current.evitar,
+      })
+      return { ok: true, perfil: getProfile() }
+    }
+    case 'recordar_preferencia': {
+      const current = getProfile()
+      const hechos = [...(current.hechos || []), args.hecho].slice(-40)
+      saveProfile({ ...current, hechos })
+      return { ok: true }
     }
     default:
       return { ok: false, error: `Herramienta desconocida: ${name}` }

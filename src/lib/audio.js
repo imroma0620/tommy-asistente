@@ -13,7 +13,7 @@ export function blobToBase64(blob) {
 }
 
 export function pickMimeType() {
-  const options = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg']
+  const options = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg']
   if (!window.MediaRecorder) return ''
   return options.find((type) => MediaRecorder.isTypeSupported(type)) || ''
 }

@@ -1,12 +1,16 @@
-import { DAY_NAMES, isoDate, memorySnapshot, weekDates } from './storage'
+import { DAY_NAMES, isoDate, memorySnapshot, weekDates, getProfile } from './storage'
 import { executeTool, TOOL_DECLARATIONS } from './tools'
+import { createCalendarEvent, listCalendarEvents } from './calendar'
+import { identityPrompt } from './identity'
 
-const MODELS = [
-  'gemini-3.5-flash-lite',
-  'gemini-3.5-flash',
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
-]
+const MODELS = ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'qwen/qwen3.6-27b']
+
+function groqBase() {
+  const host = window.location.hostname
+  const local = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local')
+    || /^\d+\.\d+\.\d+\.\d+$/.test(host)
+  return local ? '/groq' : 'https://api.groq.com/openai/v1'
+}
 
 function weekContext() {
   return weekDates(0)
@@ -16,154 +20,236 @@ function weekContext() {
 
 function systemPrompt() {
   const now = new Date()
-  return `Eres Tommy, un asistente personal real. El usuario te habla por chat o por notas de voz y TÚ haces el trabajo.
+  const profile = getProfile()
+  return `Eres Tommy, el asistente personal de ${profile.nombre || 'Diana'}. Hablas, piensas y actúas con su criterio. No eres un chatbot genérico.
+
+${identityPrompt()}
+
+Ajustes que ella te enseñó después:
+Cómo habla: ${profile.comoHabla || 'usar la bio'}
+Cómo piensa: ${profile.comoPiensa || 'usar la bio'}
+Cómo actúa: ${profile.comoActua || 'usar la bio'}
+Reglas extra: ${(profile.reglas || []).join(' | ') || 'ninguna'}
+Evitar extra: ${(profile.evitar || []).join(' | ') || 'nada'}
+Ejemplos de su voz: ${(profile.ejemplos || []).slice(0, 6).join(' / ') || 'los de la bio'}
+Hechos extra: ${(profile.hechos || []).slice(-12).join(' | ') || 'los de la bio'}
 
 Fecha de hoy: ${now.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
 Esta semana: ${weekContext()}.
 
-Tus responsabilidades:
-- Armar y ajustar la agenda semanal
-- Crear y gestionar recordatorios
-- Organizar proyectos y sus tareas
-- Recibir ideas sueltas y estructurarlas como contenido (título, formato, ángulo, tags, siguiente paso)
+Cada chat es UN tema. No arrastres otra conversación. No mezcles clientes ni proyectos salvo que ella lo pida.
 
-Reglas:
-- No le pidas que llene tableros. Si te da una instrucción y puedes ejecutarla, usa las herramientas y luego confirma qué hiciste.
-- Si falta un dato crítico (por ejemplo el día o la hora de un recordatorio), pregunta SOLO eso. No hagas un cuestionario.
-- Habla en español, claro y breve. Como un asistente cercano, no como un formulario.
-- Si te mandan audio, entiende lo que dijo y actúa.
-- Cuando estructures una idea de contenido, no la dejes cruda: guarda título, tipo, descripción útil y tags.
-- Si te piden la agenda o un resumen, usa las herramientas para leer la memoria real, no inventes.
-- Puedes hacer varias acciones en el mismo turno si el usuario pidió varias cosas.`
+Responsabilidades:
+- Agenda semanal
+- Recordatorios
+- Proyectos
+- Ideas de contenido
+También Google Calendar si está conectado, archivos e imágenes, y guardar su estilo.
+
+Nunca hables de versiones de Tommy. Eres un solo Tommy.
+
+Si puedes ejecutar, usa herramientas y confirma.
+Si pide calendario, usa crear_evento_calendario.`
 }
 
 function memoryHint() {
   const snap = memorySnapshot()
-  return `Memoria actual (resumen interno, no la copies literal salvo que pregunten):
-Agenda días con tareas: ${Object.keys(snap.agenda).length}
-Recordatorios: ${snap.recordatorios.length}
-Proyectos: ${snap.proyectos.map((p) => p.nombre).join(', ') || 'ninguno'}
-Ideas: ${snap.ideas.length}`
+  return `Memoria: agenda ${Object.keys(snap.agenda).length} días, recordatorios ${snap.recordatorios.length}, proyectos ${snap.proyectos.map((p) => p.nombre).join(', ') || 'ninguno'}, ideas ${snap.ideas.length}.`
 }
 
-async function generate(apiKey, model, contents) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`
-  const res = await fetch(url, {
+function jsonSchema(node) {
+  if (!node || typeof node !== 'object') return { type: 'object', properties: {} }
+  const typeMap = {
+    OBJECT: 'object',
+    STRING: 'string',
+    ARRAY: 'array',
+    NUMBER: 'number',
+    BOOLEAN: 'boolean',
+    INTEGER: 'integer',
+  }
+  const out = { ...node }
+  if (node.type) out.type = typeMap[node.type] || String(node.type).toLowerCase()
+  if (node.properties) {
+    out.properties = Object.fromEntries(
+      Object.entries(node.properties).map(([key, value]) => [key, jsonSchema(value)]),
+    )
+  }
+  if (node.items) out.items = jsonSchema(node.items)
+  return out
+}
+
+function groqTools() {
+  return TOOL_DECLARATIONS.map((tool) => ({
+    type: 'function',
+    function: {
+      name: tool.name,
+      description: tool.description,
+      parameters: jsonSchema(tool.parameters),
+    },
+  }))
+}
+
+async function groqChat(apiKey, model, messages) {
+  const res = await fetch(`${groqBase()}/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
     body: JSON.stringify({
-      system_instruction: { parts: [{ text: `${systemPrompt()}\n\n${memoryHint()}` }] },
-      contents,
-      tools: [{ function_declarations: TOOL_DECLARATIONS }],
+      model,
+      messages,
+      tools: groqTools(),
+      temperature: 0.3,
     }),
   })
   const data = await res.json()
   if (!res.ok) {
-    const msg = data?.error?.message || `Error ${res.status} al hablar con Gemini`
-    const err = new Error(msg)
+    const msg = data?.error?.message || `Error ${res.status} al hablar con Groq`
+    const err = new Error(friendlyError(msg, res.status))
     err.status = res.status
     throw err
   }
   return data
 }
 
-function partsFromResponse(data) {
-  return data?.candidates?.[0]?.content?.parts || []
+function friendlyError(msg, status) {
+  const text = String(msg || '')
+  if (status === 401 || text.toLowerCase().includes('invalid')) {
+    return 'La clave de Groq no es válida. Ábrela en Ajustes y pega una clave nueva de console.groq.com/keys. Es gratis y no pide tarjeta.'
+  }
+  if (status === 429) {
+    return 'Se acabó la cuota gratis de Groq por ahora. Prueba más tarde; no hay cobro.'
+  }
+  return text
 }
 
-export async function talkToTommy({ apiKey, history, text, audio }) {
-  if (!apiKey) {
-    throw new Error('Falta tu clave de Gemini. Ábrela en Ajustes: es gratis en Google AI Studio.')
+export async function transcribeAudio(apiKey, audio) {
+  const bytes = Uint8Array.from(atob(audio.base64), (c) => c.charCodeAt(0))
+  const blob = new Blob([bytes], { type: audio.mimeType || 'audio/webm' })
+  const form = new FormData()
+  form.append('file', blob, 'nota.webm')
+  form.append('model', 'whisper-large-v3-turbo')
+  form.append('language', 'es')
+  const res = await fetch(`${groqBase()}/audio/transcriptions`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: form,
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data?.error?.message || 'No pude entender el audio.')
+  return data.text || ''
+}
+
+export async function talkToTommy({ apiKey, history, text, audio, files = [] }) {
+  if (!apiKey || !String(apiKey).startsWith('gsk_')) {
+    throw new Error('Necesito una clave gratis de Groq. No uses Gemini ni pongas tarjeta. En Ajustes te dejo el enlace.')
   }
 
-  const userParts = []
-  if (text) userParts.push({ text })
+  let userText = (text || '').trim()
   if (audio?.base64) {
-    userParts.push({
-      inline_data: {
-        mime_type: audio.mimeType || 'audio/webm',
-        data: audio.base64,
-      },
-    })
-    if (!text) {
-      userParts.unshift({
-        text: 'El usuario mandó una nota de voz. Entiende lo que dijo y actúa. En tu respuesta, menciona en una frase qué escuchaste.',
-      })
-    }
+    const heard = await transcribeAudio(apiKey, audio)
+    userText = heard ? `${userText ? `${userText}\n` : ''}${heard}`.trim() : userText || 'Nota de voz vacía'
   }
+  const images = files.filter((f) => f.kind === 'image')
+  const texts = files.filter((f) => f.kind === 'text')
+  if (texts.length) {
+    userText += `\n\nArchivos adjuntos:\n${texts.map((f) => `--- ${f.name} ---\n${f.text}`).join('\n\n')}`
+  }
+  if (!userText && !images.length) throw new Error('No entendí el mensaje. Prueba otra vez.')
+  if (!userText) userText = 'Revisa los archivos adjuntos y dime lo importante. Actúa si hace falta.'
 
-  const contents = [
+  const userContent = images.length
+    ? [
+        { type: 'text', text: userText },
+        ...images.map((img) => ({ type: 'image_url', image_url: { url: img.dataUrl } })),
+      ]
+    : userText
+
+  const messages = [
+    { role: 'system', content: `${systemPrompt()}\n\n${memoryHint()}` },
     ...history,
-    { role: 'user', parts: userParts },
+    { role: 'user', content: userContent },
   ]
 
+  const models = images.length
+    ? ['qwen/qwen3.6-27b', 'openai/gpt-oss-20b', 'openai/gpt-oss-120b']
+    : MODELS
+
   let lastError
-  for (const model of MODELS) {
+  for (const model of models) {
     try {
-      return await runLoop(apiKey, model, structuredClone(contents))
+      const result = await runLoop(apiKey, model, messages)
+      return { ...result, transcript: userText }
     } catch (error) {
       lastError = error
-      if (!shouldTryNextModel(error)) break
+      if (!shouldTryNext(error)) break
     }
   }
-  throw lastError || new Error('No pude contactar a Gemini.')
+  throw lastError || new Error('No pude contactar a Groq.')
 }
 
-function shouldTryNextModel(error) {
-  const status = error?.status
+function shouldTryNext(error) {
   const msg = String(error?.message || '').toLowerCase()
-  if (status === 404 || status === 400) return true
   return (
-    msg.includes('no longer available') ||
+    error?.status === 404 ||
+    error?.status === 400 ||
     msg.includes('not found') ||
-    msg.includes('is not supported') ||
-    msg.includes('not available')
+    msg.includes('decommissioned') ||
+    msg.includes('does not exist')
   )
 }
 
-async function runLoop(apiKey, model, contents) {
+async function runLoop(apiKey, model, messages) {
   const actions = []
-  let data = await generate(apiKey, model, contents)
+  let data = await groqChat(apiKey, model, messages)
   let guard = 0
 
   while (guard < 6) {
-    const parts = partsFromResponse(data)
-    const calls = parts.filter((p) => p.functionCall)
-    const texts = parts.filter((p) => p.text).map((p) => p.text).join('\n').trim()
-
+    const choice = data?.choices?.[0]?.message || {}
+    const calls = choice.tool_calls || []
     if (!calls.length) {
-      return { text: texts || 'Listo, ya lo anoté.', actions, model }
+      return { text: (choice.content || 'Listo, ya lo anoté.').trim(), actions, model, transcript: messages.at(-1)?.content }
     }
 
-    contents.push({ role: 'model', parts })
-    const responses = []
-    for (const part of calls) {
-      const name = part.functionCall.name
-      const args = part.functionCall.args || {}
-      const result = executeTool(name, args)
+    messages.push({
+      role: 'assistant',
+      content: choice.content || '',
+      tool_calls: calls,
+    })
+    for (const call of calls) {
+      let args = {}
+      try {
+        args = JSON.parse(call.function?.arguments || '{}')
+      } catch {
+        args = {}
+      }
+      const name = call.function?.name
+      let result
+      if (name === 'listar_calendario') result = await listCalendarEvents()
+      else if (name === 'crear_evento_calendario') result = await createCalendarEvent(args)
+      else result = executeTool(name, args)
       actions.push({ name, args, result })
-      responses.push({
-        functionResponse: {
-          name,
-          response: result,
-        },
+      messages.push({
+        role: 'tool',
+        tool_call_id: call.id,
+        content: JSON.stringify(result),
       })
     }
-    contents.push({ role: 'user', parts: responses })
-    data = await generate(apiKey, model, contents)
+    data = await groqChat(apiKey, model, messages)
     guard += 1
   }
 
   return { text: 'Hice los cambios, pero el modelo se quedó en un bucle. Revisa la memoria.', actions, model }
 }
 
-export function toGeminiHistory(messages) {
+export function toChatHistory(messages) {
   return messages
     .filter((m) => m.role === 'user' || m.role === 'assistant')
     .filter((m) => m.text && !m.error)
     .slice(-16)
     .map((m) => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.text }],
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      content: m.text,
     }))
 }

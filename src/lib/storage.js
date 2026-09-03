@@ -1,10 +1,15 @@
+import { IDENTITY } from './identity'
+
 const KEYS = {
   agenda: 'tommy_agenda',
   recordatorios: 'tommy_recordatorios',
   proyectos: 'tommy_proyectos',
   ideas: 'tommy_ideas',
   chat: 'tommy_chat',
+  conversations: 'tommy_conversations',
+  activeId: 'tommy_active_id',
   settings: 'tommy_settings',
+  profile: 'tommy_profile',
 }
 
 function read(key, fallback) {
@@ -17,15 +22,218 @@ function read(key, fallback) {
 }
 
 function write(key, value) {
-  localStorage.setItem(key, JSON.stringify(value))
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+    schedulePush()
+  } catch {
+    // Safari privado o ITP
+  }
+}
+
+function snapshotAll() {
+  return {
+    settings: getSettings(),
+    profile: getProfile(),
+    chat: getChat(),
+    conversations: read(KEYS.conversations, []),
+    activeId: read(KEYS.activeId, ''),
+    agenda: getAgenda(),
+    recordatorios: getReminders(),
+    proyectos: getProjects(),
+    ideas: getIdeas(),
+  }
+}
+
+let pushTimer
+let localApi = false
+
+function schedulePush() {
+  if (!localApi) return
+  clearTimeout(pushTimer)
+  pushTimer = setTimeout(() => {
+    fetch('/api/state', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(snapshotAll()),
+    }).catch(() => {})
+  }, 300)
+}
+
+function profileHasContent(profile) {
+  return Boolean(profile?.nombre || profile?.comoHabla || profile?.comoPiensa || (profile?.hechos || []).length)
+}
+
+export async function syncOnBoot() {
+  let remote = {}
+  try {
+    const res = await Promise.race([
+      fetch('/api/state'),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000)),
+    ])
+    if (res.ok) {
+      remote = await res.json()
+      localApi = true
+    }
+  } catch {
+    return
+  }
+
+  const localSettings = getSettings()
+  const mergedSettings = {
+    ...(remote.settings || {}),
+    ...localSettings,
+    apiKey: localSettings.apiKey || remote.settings?.apiKey || '',
+    googleClientId: localSettings.googleClientId || remote.settings?.googleClientId || '',
+  }
+  localStorage.setItem(KEYS.settings, JSON.stringify(mergedSettings))
+
+  if (!profileHasContent(getProfile()) && remote.profile) {
+    localStorage.setItem(KEYS.profile, JSON.stringify(remote.profile))
+  }
+  seedIdentity()
+
+  const localConvos = read(KEYS.conversations, [])
+  if (!localConvos.length && remote.conversations?.length) {
+    localStorage.setItem(KEYS.conversations, JSON.stringify(remote.conversations))
+    if (remote.activeId) localStorage.setItem(KEYS.activeId, JSON.stringify(remote.activeId))
+  } else if (!getChat().length && remote.chat?.length) {
+    localStorage.setItem(KEYS.chat, JSON.stringify(remote.chat))
+  }
+  migrateConversations()
+  if (!Object.keys(getAgenda()).length && remote.agenda) {
+    localStorage.setItem(KEYS.agenda, JSON.stringify(remote.agenda))
+  }
+  if (!getReminders().length && remote.recordatorios) {
+    localStorage.setItem(KEYS.recordatorios, JSON.stringify(remote.recordatorios))
+  }
+  if (!getProjects().length && remote.proyectos) {
+    localStorage.setItem(KEYS.proyectos, JSON.stringify(remote.proyectos))
+  }
+  if (!getIdeas().length && remote.ideas) {
+    localStorage.setItem(KEYS.ideas, JSON.stringify(remote.ideas))
+  }
+
+  await fetch('/api/state', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(snapshotAll()),
+  }).catch(() => {})
 }
 
 export function getSettings() {
-  return read(KEYS.settings, { apiKey: '', voiceReplies: false })
+  return read(KEYS.settings, { apiKey: '', voiceReplies: false, googleClientId: '' })
 }
 
 export function saveSettings(settings) {
   write(KEYS.settings, { ...getSettings(), ...settings })
+}
+
+export function getProfile() {
+  return read(KEYS.profile, {
+    nombre: '',
+    comoHabla: '',
+    comoPiensa: '',
+    comoActua: '',
+    reglas: [],
+    ejemplos: [],
+    evitar: [],
+    hechos: [],
+  })
+}
+
+export function saveProfile(profile) {
+  write(KEYS.profile, { ...getProfile(), ...profile })
+}
+
+export function seedIdentity() {
+  const settings = getSettings()
+  if (settings.identitySeeded) return
+  const p = getProfile()
+  saveProfile({
+    nombre: p.nombre || IDENTITY.nombre,
+    comoHabla: p.comoHabla || IDENTITY.comoHabla,
+    comoPiensa: p.comoPiensa || IDENTITY.comoPiensa,
+    comoActua: p.comoActua || IDENTITY.comoActua,
+    reglas: p.reglas?.length ? p.reglas : IDENTITY.reglas,
+    ejemplos: p.ejemplos?.length ? p.ejemplos : IDENTITY.ejemplos,
+    evitar: p.evitar?.length ? p.evitar : IDENTITY.evitar,
+    hechos: p.hechos?.length ? p.hechos : IDENTITY.hechos,
+  })
+  saveSettings({ identitySeeded: true })
+}
+
+function titleFrom(messages) {
+  const user = (messages || []).find((m) => m.role === 'user' && m.text)
+  const text = String(user?.text || '').replace(/\s+/g, ' ').trim()
+  if (!text) return 'Nueva conversación'
+  return text.length > 36 ? `${text.slice(0, 36)}…` : text
+}
+
+function migrateConversations() {
+  const current = read(KEYS.conversations, [])
+  if (current.length) {
+    if (!read(KEYS.activeId, '')) write(KEYS.activeId, current[0].id)
+    return current
+  }
+  const old = getChat()
+  const first = {
+    id: 'c-main',
+    title: titleFrom(old) || 'Conversación',
+    updatedAt: Date.now(),
+    messages: old.length ? old : [],
+  }
+  write(KEYS.conversations, [first])
+  write(KEYS.activeId, first.id)
+  return [first]
+}
+
+export function getConversations() {
+  return migrateConversations().slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+}
+
+export function getActiveId() {
+  migrateConversations()
+  return read(KEYS.activeId, 'c-main')
+}
+
+export function setActiveId(id) {
+  write(KEYS.activeId, id)
+}
+
+export function saveConversationMessages(id, messages) {
+  const list = getConversations().map((c) =>
+    c.id === id
+      ? { ...c, messages: messages.slice(-80), title: titleFrom(messages), updatedAt: Date.now() }
+      : c,
+  )
+  write(KEYS.conversations, list)
+  if (id === getActiveId()) write(KEYS.chat, messages.slice(-80))
+}
+
+export function createConversation(welcome) {
+  const conv = {
+    id: `c-${Date.now()}`,
+    title: 'Nueva conversación',
+    updatedAt: Date.now(),
+    messages: welcome ? [welcome] : [],
+  }
+  write(KEYS.conversations, [conv, ...getConversations()])
+  write(KEYS.activeId, conv.id)
+  write(KEYS.chat, conv.messages)
+  return conv
+}
+
+export function deleteConversation(id) {
+  const rest = getConversations().filter((c) => c.id !== id)
+  if (!rest.length) {
+    return createConversation()
+  }
+  write(KEYS.conversations, rest)
+  if (getActiveId() === id) {
+    write(KEYS.activeId, rest[0].id)
+    write(KEYS.chat, rest[0].messages || [])
+  }
+  return rest[0]
 }
 
 export function getChat() {

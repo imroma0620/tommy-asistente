@@ -1,1 +1,1 @@
-{"name":"Tommy Asistente","short_name":"Tommy","description":"Asistente personal por chat y audio","start_url":"/","display":"standalone","background_color":"#0c0d14","theme_color":"#0c0d14","lang":"en","scope":"./","icons":[{"src":"favicon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]}
+{"name":"Tommy","short_name":"Tommy","description":"Asistente de IM ROMA","start_url":"./","display":"standalone","background_color":"#0D0D1A","theme_color":"#0D0D1A","lang":"en","scope":"./","icons":[{"src":"./tommy.png","sizes":"512x512","type":"image/png","purpose":"any"}]}
