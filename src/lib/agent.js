@@ -1,7 +1,7 @@
 import { DAY_NAMES, isoDate, memorySnapshot, weekDates } from './storage'
 import { executeTool, TOOL_DECLARATIONS } from './tools'
 
-const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+const MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite']
 
 function weekContext() {
   return weekDates(0)

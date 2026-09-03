@@ -7,11 +7,14 @@ export default function Settings({ settings, onChange, onClose }) {
           <button className="icon-btn" onClick={onClose} aria-label="Cerrar">✕</button>
         </div>
         <p className="muted">
-          Tommy usa Gemini, que tiene un plan gratuito. Crea una clave en{' '}
+          Tommy usa el plan gratis de Gemini. Entra a{' '}
           <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">
             Google AI Studio
           </a>
-          , pégala aquí y listo. Se guarda solo en este dispositivo.
+          , crea una clave y pégala aquí. Se guarda solo en este teléfono o computadora.
+        </p>
+        <p className="muted">
+          No actives facturación ni agregues tarjeta. Si Google te pide pagar, cancela: con el plan Free no hay cobro. Si se acaba la cuota del día, Tommy se pausa hasta mañana, no te factura.
         </p>
         <label className="field">
           <span>Clave de Gemini</span>
