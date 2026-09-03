@@ -1,3 +1,5 @@
+import CopyRow from './CopyRow'
+
 export const PHONE_HOME = 'https://imroma0620.github.io/tommy-asistente/'
 
 export default function Phone({ open, onClose }) {
@@ -18,13 +20,13 @@ export default function Phone({ open, onClose }) {
         ) : onPhone ? (
           <>
             <p className="muted">Esto no usa el computador. En Safari: Compartir → Añadir a pantalla de inicio. La próxima vez ábrelo desde el icono, con el PC apagado.</p>
-            <code className="copy">{PHONE_HOME}</code>
+            <CopyRow value={PHONE_HOME} />
           </>
         ) : (
           <>
             <p className="muted">Escanea esto en Safari. Es la copia del celular, no el túnel ni el PC. Luego: Compartir → Añadir a pantalla de inicio. Después puedes cerrar el computador.</p>
             <img className="qr" src={qr} alt="Código de Tommy en el celular" />
-            <code className="copy">{PHONE_HOME}</code>
+            <CopyRow value={PHONE_HOME} />
           </>
         )}
       </div>

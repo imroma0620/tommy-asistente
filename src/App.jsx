@@ -11,7 +11,7 @@ import Conversations from './components/Conversations'
 import { blobToBase64, startRecording } from './lib/audio'
 import { prepareFiles } from './lib/files'
 import { talkToTommy, toChatHistory } from './lib/agent'
-import { calendarConnected, listCalendarEvents } from './lib/calendar'
+import { calendarConnected, captureCalendarRedirect, listCalendarEvents } from './lib/calendar'
 import {
   getChat,
   getReminders,
@@ -84,6 +84,12 @@ export default function App() {
   const refresh = () => setSnapshot(memorySnapshot())
 
   useEffect(() => {
+    const back = captureCalendarRedirect()
+    if (back.error) {
+      setErrorBanner(back.error)
+      setShowCalendar(true)
+    }
+    if (back.ok) setCalOk(true)
     let alive = true
     syncOnBoot().then(() => {
       if (!alive) return
