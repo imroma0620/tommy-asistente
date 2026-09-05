@@ -128,6 +128,23 @@ const server = http.createServer(async (req, res) => {
         return
       }
     }
+    if (url.pathname === '/web') {
+      const target = url.searchParams.get('url') || ''
+      if (!/^https?:\/\//i.test(target)) {
+        json(res, 400, { error: 'URL inválida' })
+        return
+      }
+      const upstream = await fetch(target, {
+        headers: { 'User-Agent': 'Tommy/1.0 (IM ROMA)' },
+      })
+      const buf = Buffer.from(await upstream.arrayBuffer())
+      cors(res)
+      res.writeHead(upstream.status, {
+        'Content-Type': upstream.headers.get('content-type') || 'text/plain; charset=utf-8',
+      })
+      res.end(buf)
+      return
+    }
     if (url.pathname.startsWith('/groq')) {
       const target = GROQ + url.pathname.slice('/groq'.length) + url.search
       const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : await collect(req)

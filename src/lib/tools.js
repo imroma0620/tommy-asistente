@@ -12,7 +12,11 @@ import {
   DAY_NAMES,
   getProfile,
   saveProfile,
+  rememberSource,
+  rememberFacts,
 } from './storage'
+import { searchWeb, readPage } from './web'
+import { createDocument, createPresentation, createScript } from './exports'
 
 export const TOOL_DECLARATIONS = [
   {
@@ -251,6 +255,102 @@ export const TOOL_DECLARATIONS = [
     parameters: { type: 'OBJECT', properties: {} },
   },
   {
+    name: 'buscar_internet',
+    description: 'Busca en internet información actual. Úsala SIEMPRE que pida investigar, buscar, referencias, tendencias o datos que no estén en su memoria.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        consulta: { type: 'STRING', description: 'Qué hay que buscar' },
+      },
+      required: ['consulta'],
+    },
+  },
+  {
+    name: 'leer_pagina',
+    description: 'Lee el contenido de una URL para usarlo en un guion, PDF o respuesta.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        url: { type: 'STRING' },
+      },
+      required: ['url'],
+    },
+  },
+  {
+    name: 'crear_pdf',
+    description: 'Crea un documento IM ROMA descargable (HTML listo para abrir, compartir o imprimir como PDF). No describas el PDF: créalo.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        titulo: { type: 'STRING' },
+        cuerpo: { type: 'STRING', description: 'Texto completo del documento, con su voz' },
+        kicker: { type: 'STRING', description: 'Etiqueta corta: Brief, Mentoria, Propuesta...' },
+      },
+      required: ['titulo', 'cuerpo'],
+    },
+  },
+  {
+    name: 'crear_presentacion',
+    description: 'Crea una presentación IM ROMA descargable, diapositiva por diapositiva.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        titulo: { type: 'STRING' },
+        slides: {
+          type: 'ARRAY',
+          items: {
+            type: 'OBJECT',
+            properties: {
+              titulo: { type: 'STRING' },
+              cuerpo: { type: 'STRING' },
+              nota: { type: 'STRING' },
+            },
+            required: ['titulo', 'cuerpo'],
+          },
+        },
+      },
+      required: ['titulo', 'slides'],
+    },
+  },
+  {
+    name: 'crear_guion',
+    description: 'Crea un guion descargable: reel, mentoría, evento o pieza. Con locución y visual.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        titulo: { type: 'STRING' },
+        tipo: { type: 'STRING', description: 'reel, mentoria, evento, post, otro' },
+        cuerpo: { type: 'STRING' },
+        escenas: {
+          type: 'ARRAY',
+          items: {
+            type: 'OBJECT',
+            properties: {
+              titulo: { type: 'STRING' },
+              tiempo: { type: 'STRING' },
+              locucion: { type: 'STRING' },
+              visual: { type: 'STRING' },
+            },
+          },
+        },
+      },
+      required: ['titulo'],
+    },
+  },
+  {
+    name: 'aprender_de_documento',
+    description: 'Guarda de forma permanente lo que ella te enseñó en un documento, bio, brief o formato. Úsala cada vez que adjunte material sobre ella, su marca o un cliente.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        nombre: { type: 'STRING' },
+        resumen: { type: 'STRING' },
+        hechos: { type: 'ARRAY', items: { type: 'STRING' } },
+      },
+      required: ['nombre', 'resumen'],
+    },
+  },
+  {
     name: 'crear_evento_calendario',
     description: 'Crea un evento en Google Calendar. fecha YYYY-MM-DD, hora HH:MM.',
     parameters: {
@@ -277,7 +377,7 @@ function findIdea(titulo) {
   return getIdeas().find((i) => i.titulo.toLowerCase().includes(q))
 }
 
-export function executeTool(name, args = {}) {
+export async function executeTool(name, args = {}) {
   switch (name) {
     case 'planificar_semana': {
       const agenda = getAgenda()
@@ -452,9 +552,24 @@ export function executeTool(name, args = {}) {
     }
     case 'recordar_preferencia': {
       const current = getProfile()
-      const hechos = [...(current.hechos || []), args.hecho].slice(-40)
+      const hechos = [...(current.hechos || []), args.hecho].slice(-80)
       saveProfile({ ...current, hechos })
       return { ok: true }
+    }
+    case 'buscar_internet':
+      return searchWeb(args.consulta)
+    case 'leer_pagina':
+      return readPage(args.url)
+    case 'crear_pdf':
+      return createDocument({ titulo: args.titulo, cuerpo: args.cuerpo, kicker: args.kicker })
+    case 'crear_presentacion':
+      return createPresentation({ titulo: args.titulo, slides: args.slides })
+    case 'crear_guion':
+      return createScript({ titulo: args.titulo, tipo: args.tipo, escenas: args.escenas, cuerpo: args.cuerpo })
+    case 'aprender_de_documento': {
+      rememberSource(args.nombre, args.resumen)
+      rememberFacts(args.hechos || [])
+      return { ok: true, guardado: args.nombre }
     }
     default:
       return { ok: false, error: `Herramienta desconocida: ${name}` }

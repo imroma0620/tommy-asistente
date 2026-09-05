@@ -10,6 +10,7 @@ const KEYS = {
   activeId: 'tommy_active_id',
   settings: 'tommy_settings',
   profile: 'tommy_profile',
+  knowledge: 'tommy_knowledge',
 }
 
 function read(key, fallback) {
@@ -41,6 +42,7 @@ function snapshotAll() {
     recordatorios: getReminders(),
     proyectos: getProjects(),
     ideas: getIdeas(),
+    knowledge: getKnowledge(),
   }
 }
 
@@ -112,6 +114,9 @@ export async function syncOnBoot() {
   if (!getIdeas().length && remote.ideas) {
     localStorage.setItem(KEYS.ideas, JSON.stringify(remote.ideas))
   }
+  if (!getKnowledge().length && remote.knowledge?.length) {
+    localStorage.setItem(KEYS.knowledge, JSON.stringify(remote.knowledge))
+  }
 
   await fetch('/api/state', {
     method: 'PUT',
@@ -145,21 +150,54 @@ export function saveProfile(profile) {
   write(KEYS.profile, { ...getProfile(), ...profile })
 }
 
+function uniqueList(list) {
+  const seen = new Set()
+  const out = []
+  for (const item of list || []) {
+    const key = String(item || '').trim()
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    out.push(key)
+  }
+  return out
+}
+
 export function seedIdentity() {
-  const settings = getSettings()
-  if (settings.identitySeeded) return
   const p = getProfile()
   saveProfile({
     nombre: p.nombre || IDENTITY.nombre,
     comoHabla: p.comoHabla || IDENTITY.comoHabla,
     comoPiensa: p.comoPiensa || IDENTITY.comoPiensa,
     comoActua: p.comoActua || IDENTITY.comoActua,
-    reglas: p.reglas?.length ? p.reglas : IDENTITY.reglas,
-    ejemplos: p.ejemplos?.length ? p.ejemplos : IDENTITY.ejemplos,
-    evitar: p.evitar?.length ? p.evitar : IDENTITY.evitar,
-    hechos: p.hechos?.length ? p.hechos : IDENTITY.hechos,
+    reglas: uniqueList([...(IDENTITY.reglas), ...(p.reglas || [])]),
+    ejemplos: uniqueList([...(IDENTITY.ejemplos), ...(p.ejemplos || [])]),
+    evitar: uniqueList([...(IDENTITY.evitar), ...(p.evitar || [])]),
+    hechos: uniqueList([...(IDENTITY.hechos), ...(p.hechos || [])]).slice(-80),
   })
   saveSettings({ identitySeeded: true })
+}
+
+export function getKnowledge() {
+  return read(KEYS.knowledge, [])
+}
+
+export function rememberSource(name, text) {
+  const body = String(text || '').replace(/\s+/g, ' ').trim()
+  if (!body || body.length < 40) return
+  const entry = {
+    id: Date.now(),
+    name: name || 'documento',
+    text: body.slice(0, 12000),
+    at: Date.now(),
+  }
+  const rest = getKnowledge().filter((item) => item.name !== entry.name)
+  write(KEYS.knowledge, [entry, ...rest].slice(0, 24))
+}
+
+export function rememberFacts(facts = []) {
+  const current = getProfile()
+  const hechos = uniqueList([...(current.hechos || []), ...facts]).slice(-80)
+  saveProfile({ ...current, hechos })
 }
 
 function titleFrom(messages) {

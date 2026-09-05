@@ -1,4 +1,4 @@
-import { DAY_NAMES, isoDate, memorySnapshot, weekDates, getProfile } from './storage'
+import { DAY_NAMES, isoDate, memorySnapshot, weekDates, getProfile, getKnowledge, rememberSource } from './storage'
 import { executeTool, TOOL_DECLARATIONS } from './tools'
 import { createCalendarEvent, listCalendarEvents } from './calendar'
 import { identityPrompt } from './identity'
@@ -21,35 +21,23 @@ function weekContext() {
 function systemPrompt() {
   const now = new Date()
   const profile = getProfile()
-  return `Eres Tommy, el asistente personal de ${profile.nombre || 'Diana'}. Hablas, piensas y actúas con su criterio. No eres un chatbot genérico.
+  return `Eres Tommy, el asistente de trabajo de ${profile.nombre || 'Diana Stephani Muñoz Ramos (Cali)'}. No eres un planner local. Trabajas como cuando ella te habla en Cursor: investigas, escribes, armas archivos y recuerdas quién es.
 
-${identityPrompt()}
-
-Ajustes que ella te enseñó después:
-Cómo habla: ${profile.comoHabla || 'usar la bio'}
-Cómo piensa: ${profile.comoPiensa || 'usar la bio'}
-Cómo actúa: ${profile.comoActua || 'usar la bio'}
-Reglas extra: ${(profile.reglas || []).join(' | ') || 'ninguna'}
-Evitar extra: ${(profile.evitar || []).join(' | ') || 'nada'}
-Ejemplos de su voz: ${(profile.ejemplos || []).slice(0, 6).join(' / ') || 'los de la bio'}
-Hechos extra: ${(profile.hechos || []).slice(-12).join(' | ') || 'los de la bio'}
+${identityPrompt(profile, getKnowledge())}
 
 Fecha de hoy: ${now.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
 Esta semana: ${weekContext()}.
 
-Cada chat es UN tema. No arrastres otra conversación. No mezcles clientes ni proyectos salvo que ella lo pida.
+Cada chat es UN tema. No mezcles clientes ni proyectos salvo que ella lo pida.
 
-Responsabilidades:
-- Agenda semanal
-- Recordatorios
-- Proyectos
-- Ideas de contenido
-También Google Calendar si está conectado, archivos e imágenes, y guardar su estilo.
+Lo que SÍ haces:
+- Buscar en internet con buscar_internet y leer URLs con leer_pagina cuando pida investigar.
+- Crear PDF/documento con crear_pdf, presentaciones con crear_presentacion y guiones con crear_guion. Entrégaselos, no los describas nada más.
+- Agenda, recordatorios, proyectos, ideas y Google Calendar.
+- Aprender: si adjunta bio, brief, formato o te corrige, usa aprender_de_documento o recordar_preferencia. No vuelvas a tratarla como extraña.
 
 Nunca hables de versiones de Tommy. Eres un solo Tommy.
-
-Si puedes ejecutar, usa herramientas y confirma.
-Si pide calendario, usa crear_evento_calendario.`
+Si puedes ejecutar, usa herramientas y confirma.`
 }
 
 function memoryHint() {
@@ -155,6 +143,7 @@ export async function talkToTommy({ apiKey, history, text, audio, files = [] }) 
   const texts = files.filter((f) => f.kind === 'text')
   if (texts.length) {
     userText += `\n\nArchivos adjuntos:\n${texts.map((f) => `--- ${f.name} ---\n${f.text}`).join('\n\n')}`
+    texts.forEach((file) => rememberSource(file.name, file.text))
   }
   if (!userText && !images.length) throw new Error('No entendí el mensaje. Prueba otra vez.')
   if (!userText) userText = 'Revisa los archivos adjuntos y dime lo importante. Actúa si hace falta.'
@@ -209,7 +198,13 @@ async function runLoop(apiKey, model, messages) {
     const choice = data?.choices?.[0]?.message || {}
     const calls = choice.tool_calls || []
     if (!calls.length) {
-      return { text: (choice.content || 'Listo, ya lo anoté.').trim(), actions, model, transcript: messages.at(-1)?.content }
+      return {
+        text: (choice.content || 'Listo, ya lo anoté.').trim(),
+        actions,
+        downloads: actions.map((item) => item.result?.download).filter(Boolean),
+        model,
+        transcript: messages.at(-1)?.content,
+      }
     }
 
     messages.push({
@@ -228,7 +223,7 @@ async function runLoop(apiKey, model, messages) {
       let result
       if (name === 'listar_calendario') result = await listCalendarEvents()
       else if (name === 'crear_evento_calendario') result = await createCalendarEvent(args)
-      else result = executeTool(name, args)
+      else result = await executeTool(name, args)
       actions.push({ name, args, result })
       messages.push({
         role: 'tool',
@@ -240,7 +235,12 @@ async function runLoop(apiKey, model, messages) {
     guard += 1
   }
 
-  return { text: 'Hice los cambios, pero el modelo se quedó en un bucle. Revisa la memoria.', actions, model }
+  return {
+    text: 'Hice los cambios, pero el modelo se quedó en un bucle. Revisa la memoria.',
+    actions,
+    downloads: actions.map((item) => item.result?.download).filter(Boolean),
+    model,
+  }
 }
 
 export function toChatHistory(messages) {

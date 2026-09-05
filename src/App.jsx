@@ -236,7 +236,7 @@ export default function App() {
       setMessages((prev) =>
         prev.map((m) =>
           m.id === pending.id
-            ? { ...m, text: result.text, pending: false, actions }
+            ? { ...m, text: result.text, pending: false, actions, downloads: result.downloads || [] }
             : m.id === userMsg.id && (preview || result.transcript)
               ? { ...m, text: result.transcript || preview }
               : m,
@@ -446,6 +446,15 @@ export default function App() {
                   {m.actions?.length > 0 && (
                     <ul className="actions">{m.actions.map((a, i) => <li key={i}>{a}</li>)}</ul>
                   )}
+                  {m.downloads?.length > 0 && (
+                    <div className="downloads">
+                      {m.downloads.map((file) => (
+                        <a key={file.filename} className="download" href={file.url} download={file.filename}>
+                          Descargar {file.filename}
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </article>
             ))}
@@ -580,6 +589,12 @@ function labelAction(action) {
     recordar_preferencia: 'Lo dejé en tu perfil',
     crear_evento_calendario: 'Lo metí a Google Calendar',
     listar_calendario: 'Revisé tu calendario',
+    buscar_internet: 'Busqué en internet',
+    leer_pagina: 'Leí una página',
+    crear_pdf: 'Armé el documento',
+    crear_presentacion: 'Armé la presentación',
+    crear_guion: 'Escribí el guion',
+    aprender_de_documento: 'Lo guardé en tu memoria',
   }
   return map[action.name] || ''
 }

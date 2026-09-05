@@ -7,6 +7,24 @@ export function fileToDataUrl(file) {
   })
 }
 
+function extractPdfStrings(buffer) {
+  const raw = new TextDecoder('latin1').decode(buffer)
+  const chunks = []
+  const re = /\((?:\\[()\\]|[^()])*\)/g
+  let match
+  while ((match = re.exec(raw))) {
+    const piece = match[0]
+      .slice(1, -1)
+      .replace(/\\n/g, '\n')
+      .replace(/\\r/g, '')
+      .replace(/\\\(/g, '(')
+      .replace(/\\\)/g, ')')
+      .replace(/\\\\/g, '\\')
+    if (piece.trim().length > 2) chunks.push(piece)
+  }
+  return chunks.join(' ').replace(/\s+/g, ' ').trim()
+}
+
 export async function prepareFiles(fileList) {
   const files = Array.from(fileList || [])
   const ready = []
@@ -23,15 +41,23 @@ export async function prepareFiles(fileList) {
       })
       continue
     }
+    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+      const buffer = await file.arrayBuffer()
+      const extracted = extractPdfStrings(buffer)
+      ready.push({
+        kind: 'text',
+        name: file.name,
+        type: 'application/pdf',
+        text: extracted || `[PDF: ${file.name}. No pude leer el texto. Pega el contenido o mándame foto de la página.]`,
+      })
+      continue
+    }
     const text = await file.text()
-    const looksBinary = file.type === 'application/pdf' || text.startsWith('%PDF')
     ready.push({
       kind: 'text',
       name: file.name,
       type: file.type || 'text/plain',
-      text: looksBinary
-        ? `[PDF o archivo binario: ${file.name}. Si no se lee bien, mándame una foto de la página o pega el texto.]`
-        : text.slice(0, 24000),
+      text: text.slice(0, 24000),
     })
   }
   return ready

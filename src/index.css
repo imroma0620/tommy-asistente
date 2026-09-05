@@ -527,6 +527,23 @@ code { color: #d7c4a0; }
   color: var(--accent);
   font-size: 12px;
 }
+.downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.download {
+  display: inline-flex;
+  align-items: center;
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
 
 .composer-wrap {
   border-top: 1px solid var(--line);
