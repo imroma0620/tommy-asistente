@@ -1,3 +1,8 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/groq/:path*", "destination": "https://api.groq.com/openai/v1/:path*" },
+    { "source": "/higgsfield/:path*", "destination": "https://api.higgsfield.ai/:path*" },
+    { "source": "/xai/:path*", "destination": "https://api.x.ai/v1/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

@@ -17,6 +17,7 @@ import {
 } from './storage'
 import { searchWeb, readPage } from './web'
 import { createDocument, createPresentation, createScript } from './exports'
+import { generateHiggsfieldImage, generateHiggsfieldVideo } from './higgsfield'
 
 export const TOOL_DECLARATIONS = [
   {
@@ -351,6 +352,34 @@ export const TOOL_DECLARATIONS = [
     },
   },
   {
+    name: 'generar_imagen_higgsfield',
+    description: 'Genera una imagen con Higgsfield Soul. Úsala cuando pida imagen, still, visual, Soul o un frame. No describas la imagen: génela.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        prompt: { type: 'STRING', description: 'Prompt visual completo, en inglés o español, con luz, encuadre y estilo' },
+        formato: { type: 'STRING', enum: ['9:16', '16:9', '1:1', '4:5', '4:3', '3:4', '3:2', '2:3', '21:9'] },
+        cantidad: { type: 'NUMBER', description: '1 a 4' },
+        resolucion: { type: 'STRING', enum: ['2K', '4K'] },
+      },
+      required: ['prompt'],
+    },
+  },
+  {
+    name: 'generar_video_higgsfield',
+    description: 'Genera un video con Higgsfield. Si hay imagen adjunta o image_url, usa DoP. Si solo hay texto, texto a video. No describas el video: génelo.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        prompt: { type: 'STRING', description: 'Movimiento, cámara y escena' },
+        image_url: { type: 'STRING', description: 'URL pública de la imagen inicial, si ya la tiene' },
+        formato: { type: 'STRING', enum: ['9:16', '16:9', '1:1', '4:3', '3:4'] },
+        duracion: { type: 'NUMBER', description: 'Segundos, 2 a 12' },
+      },
+      required: ['prompt'],
+    },
+  },
+  {
     name: 'crear_evento_calendario',
     description: 'Crea un evento en Google Calendar. fecha YYYY-MM-DD, hora HH:MM.',
     parameters: {
@@ -377,7 +406,7 @@ function findIdea(titulo) {
   return getIdeas().find((i) => i.titulo.toLowerCase().includes(q))
 }
 
-export async function executeTool(name, args = {}) {
+export async function executeTool(name, args = {}, context = {}) {
   switch (name) {
     case 'planificar_semana': {
       const agenda = getAgenda()
@@ -571,6 +600,10 @@ export async function executeTool(name, args = {}) {
       rememberFacts(args.hechos || [])
       return { ok: true, guardado: args.nombre }
     }
+    case 'generar_imagen_higgsfield':
+      return generateHiggsfieldImage(args)
+    case 'generar_video_higgsfield':
+      return generateHiggsfieldVideo(args, context)
     default:
       return { ok: false, error: `Herramienta desconocida: ${name}` }
   }

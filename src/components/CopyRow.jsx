@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export default function CopyRow({ label, value }) {
+export default function CopyRow({ label, value, preview }) {
   const [done, setDone] = useState(false)
 
   const copy = async () => {
@@ -24,7 +24,7 @@ export default function CopyRow({ label, value }) {
   return (
     <div className="copy-row">
       {label ? <span className="copy-label">{label}</span> : null}
-      <code className="copy">{value}</code>
+      <code className="copy">{preview || value}</code>
       <button type="button" className="ghost" onClick={copy}>{done ? 'Copiado' : 'Copiar'}</button>
     </div>
   )

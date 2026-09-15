@@ -10,7 +10,7 @@ import Phone from './components/Phone'
 import Conversations from './components/Conversations'
 import { blobToBase64, startRecording } from './lib/audio'
 import { prepareFiles } from './lib/files'
-import { talkToTommy, toChatHistory } from './lib/agent'
+import { talkToTommy, toChatHistory, isGrokKey } from './lib/agent'
 import { calendarConnected, captureCalendarRedirect, listCalendarEvents } from './lib/calendar'
 import {
   getChat,
@@ -65,7 +65,9 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [recording, setRecording] = useState(false)
   const [recordSecs, setRecordSecs] = useState(0)
-  const [showSettings, setShowSettings] = useState(!String(getSettings().apiKey || '').startsWith('gsk_'))
+  const [showSettings, setShowSettings] = useState(
+    !isGrokKey(getSettings().grokKey) && !String(getSettings().apiKey || '').startsWith('gsk_'),
+  )
   const [showPhone, setShowPhone] = useState(false)
   const [inboxOpen, setInboxOpen] = useState(false)
   const [showCalendar, setShowCalendar] = useState(false)
@@ -107,8 +109,8 @@ export default function App() {
         .filter((m) => !m.error && !String(m.text || '').includes('denied access'))
         .map((m) => (m.id === 'welcome' ? WELCOME : m))
       if (saved.length) setMessages(saved)
-      const key = String(getSettings().apiKey || '')
-      if (key.startsWith('gsk_')) setShowSettings(false)
+      const next = getSettings()
+      if (isGrokKey(next.grokKey) || String(next.apiKey || '').startsWith('gsk_')) setShowSettings(false)
     })
     return () => { alive = false }
   }, [])
@@ -203,9 +205,9 @@ export default function App() {
     const trimmed = (text || '').trim()
     const files = pendingFiles
     if ((!trimmed && !audio && files.length === 0) || busy) return
-    if (!String(settings.apiKey || '').startsWith('gsk_')) {
+    if (!isGrokKey(settings.grokKey) && !String(settings.apiKey || '').startsWith('gsk_')) {
       setShowSettings(true)
-      setErrorBanner('Pega en Ajustes una clave de Groq (gsk_...). Es gratis y no pide tarjeta.')
+      setErrorBanner('Pega en Ajustes la clave de Grok (xai-...) para trabajar en línea.')
       return
     }
 
@@ -227,6 +229,7 @@ export default function App() {
     try {
       const result = await talkToTommy({
         apiKey: settings.apiKey,
+        grokKey: settings.grokKey,
         history: toChatHistory(messages),
         text: trimmed,
         audio,
@@ -449,9 +452,15 @@ export default function App() {
                   {m.downloads?.length > 0 && (
                     <div className="downloads">
                       {m.downloads.map((file) => (
-                        <a key={file.filename} className="download" href={file.url} download={file.filename}>
-                          Descargar {file.filename}
-                        </a>
+                        <div key={file.url || file.filename} className="media-card">
+                          {file.kind === 'image' && <img className="gen-media" src={file.url} alt={file.filename} />}
+                          {file.kind === 'video' && (
+                            <video className="gen-media" src={file.url} controls playsInline />
+                          )}
+                          <a className="download" href={file.url} target="_blank" rel="noreferrer" download={file.filename}>
+                            Descargar {file.filename}
+                          </a>
+                        </div>
                       ))}
                     </div>
                   )}
@@ -595,6 +604,8 @@ function labelAction(action) {
     crear_presentacion: 'Armé la presentación',
     crear_guion: 'Escribí el guion',
     aprender_de_documento: 'Lo guardé en tu memoria',
+    generar_imagen_higgsfield: 'Generé la imagen en Higgsfield',
+    generar_video_higgsfield: 'Generé el video en Higgsfield',
   }
   return map[action.name] || ''
 }

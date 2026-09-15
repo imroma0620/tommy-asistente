@@ -43,6 +43,16 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/groq/, '/openai/v1'),
       },
+      '/xai': {
+        target: 'https://api.x.ai',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/xai/, '/v1'),
+      },
+      '/higgsfield': {
+        target: 'https://api.higgsfield.ai',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/higgsfield/, ''),
+      },
     },
   },
 })

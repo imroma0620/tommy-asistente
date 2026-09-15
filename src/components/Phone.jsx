@@ -1,6 +1,7 @@
 import CopyRow from './CopyRow'
+import { TOMMY_WEB } from '../lib/hosts'
 
-export const PHONE_HOME = 'https://imroma0620.github.io/tommy-asistente/'
+export const PHONE_HOME = TOMMY_WEB
 
 export default function Phone({ open, onClose }) {
   if (!open) return null
@@ -24,7 +25,7 @@ export default function Phone({ open, onClose }) {
           </>
         ) : (
           <>
-            <p className="muted">Escanea esto en Safari. Es la copia del celular, no el túnel ni el PC. Luego: Compartir → Añadir a pantalla de inicio. Después puedes cerrar el computador.</p>
+            <p className="muted">Escanea esto en Safari. Es Tommy en internet, no localhost. Luego: Compartir → Añadir a pantalla de inicio. El PC puede estar apagado. Lo autónomo (Grok Bot) es otra app, la que ya instalaste.</p>
             <img className="qr" src={qr} alt="Código de Tommy en el celular" />
             <CopyRow value={PHONE_HOME} />
           </>

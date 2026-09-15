@@ -85,7 +85,10 @@ export async function syncOnBoot() {
     ...(remote.settings || {}),
     ...localSettings,
     apiKey: localSettings.apiKey || remote.settings?.apiKey || '',
+    grokKey: localSettings.grokKey || remote.settings?.grokKey || '',
     googleClientId: localSettings.googleClientId || remote.settings?.googleClientId || '',
+    higgsfieldKeyId: localSettings.higgsfieldKeyId || remote.settings?.higgsfieldKeyId || '',
+    higgsfieldSecret: localSettings.higgsfieldSecret || remote.settings?.higgsfieldSecret || '',
   }
   localStorage.setItem(KEYS.settings, JSON.stringify(mergedSettings))
 
@@ -126,7 +129,14 @@ export async function syncOnBoot() {
 }
 
 export function getSettings() {
-  return read(KEYS.settings, { apiKey: '', voiceReplies: false, googleClientId: '' })
+  return read(KEYS.settings, {
+    apiKey: '',
+    grokKey: '',
+    voiceReplies: false,
+    googleClientId: '',
+    higgsfieldKeyId: '',
+    higgsfieldSecret: '',
+  })
 }
 
 export function saveSettings(settings) {

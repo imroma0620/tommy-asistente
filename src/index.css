@@ -533,6 +533,19 @@ code { color: #d7c4a0; }
   gap: 8px;
   margin-top: 10px;
 }
+.media-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 280px;
+}
+.gen-media {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #111;
+  display: block;
+}
 .download {
   display: inline-flex;
   align-items: center;
@@ -620,10 +633,14 @@ code { color: #d7c4a0; }
 }
 .muted { color: var(--muted); font-size: 13px; margin: 6px 0 14px; }
 .field { display: flex; flex-direction: column; gap: 6px; margin: 14px 0; font-size: 13px; }
-.field input {
+.field input, .field textarea, textarea.paste {
   background: var(--bg); border: 1px solid var(--line); color: var(--text);
   border-radius: 10px; padding: 11px 12px;
+  font: inherit;
+  width: 100%;
+  resize: vertical;
 }
+textarea.paste { min-height: 88px; font-size: 12px; line-height: 1.45; }
 .check { display: flex; gap: 8px; align-items: center; font-size: 14px; margin: 12px 0 20px; }
 
 .done { text-decoration: line-through; color: var(--muted); }
