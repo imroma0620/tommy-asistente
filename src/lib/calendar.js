@@ -63,10 +63,10 @@ export function calendarConnected() {
 function friendlyOAuthError(raw) {
   const text = String(raw || '')
   if (/origin_mismatch|javascript origin/i.test(text)) {
-    return 'Google no acepta el link largo de GitHub. En Credenciales pega solo el origen https://imroma0620.github.io'
+    return 'En Google Cloud → Credenciales OAuth, añade el origen de esta página (ej. https://tommy-asistente.vercel.app o https://imroma0620.github.io).'
   }
   if (/redirect_uri_mismatch/i.test(text)) {
-    return 'Falta la URI de redirección https://imroma0620.github.io/tommy-asistente/ en tu cliente de Google.'
+    return 'Falta la URI de redirección con barra final (ej. https://tommy-asistente.vercel.app/ o https://imroma0620.github.io/tommy-asistente/).'
   }
   if (/popup|closed|access_denied|popup_closed/i.test(text)) {
     return 'Google se cerró. Toca Conectar otra vez.'

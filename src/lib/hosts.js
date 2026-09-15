@@ -9,4 +9,7 @@ export function hasApiProxy() {
   return isLocalHost() || host.endsWith('.vercel.app')
 }
 
-export const TOMMY_WEB = 'https://imroma0620.github.io/tommy-asistente/'
+/** URL canónica de Tommy (Vercel). GitHub Pages: https://imroma0620.github.io/tommy-asistente/ */
+export const TOMMY_WEB = 'https://tommy-asistente.vercel.app/'
+
+export const TOMMY_WEB_PAGES = 'https://imroma0620.github.io/tommy-asistente/'

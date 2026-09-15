@@ -11,7 +11,7 @@ const PORT = Number(process.env.TOMMY_PORT || 8787)
 const DATA_DIR = path.join(__dirname, 'data')
 const STATE_FILE = path.join(DATA_DIR, 'state.json')
 const GROQ = 'https://api.groq.com/openai/v1'
-const PHONE_HOME = 'https://imroma0620.github.io/tommy-asistente/'
+const PHONE_HOME = 'https://tommy-asistente.vercel.app/'
 const API_TOKEN = process.env.TOMMY_API_TOKEN || ''
 
 const SEED_PROJECTS = [
@@ -268,7 +268,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('')
   console.log('Tommy del PC esta listo.')
   console.log('  PC:      http://localhost:' + PORT)
-  console.log('  Celular: https://imroma0620.github.io/tommy-asistente/')
+  console.log('  Celular: https://tommy-asistente.vercel.app/')
   console.log('  El celular ya no usa esta ventana. Puedes cerrar el computador.')
   console.log('')
   openFirewall()
