@@ -40,7 +40,14 @@ function render() {
 render()
 
 try {
-  registerSW({ immediate: true })
+  registerSW({
+    immediate: true,
+    onNeedRefresh() {
+      if (window.confirm('Hay una versión nueva de Tommy. ¿Recargar ahora?')) {
+        window.location.reload()
+      }
+    },
+  })
 } catch {
   // Sin PWA en desarrollo no pasa nada
 }

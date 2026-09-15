@@ -17,10 +17,14 @@ export default function Phone({ open, onClose }) {
           <button className="icon-btn" onClick={onClose} aria-label="Cerrar">✕</button>
         </div>
         {installed ? (
-          <p className="muted">Tommy ya está en este teléfono. Puedes apagar el computador. Agenda, recordatorios, proyectos e ideas quedan aquí. Para hablarle, el iPhone sí necesita datos (no el PC).</p>
+          <>
+            <p className="muted">Tommy ya está en este teléfono. Agenda, proyectos e ideas se sincronizan en la nube cuando configuras Supabase o la API (ver README). Para hablarle, el iPhone necesita datos móviles o Wi‑Fi.</p>
+            <p className="muted phone-hint">Si no ves cambios recientes, cierra la app desde el conmutador de apps y ábrela otra vez desde el icono (Safari actualiza la PWA al reiniciar).</p>
+          </>
         ) : onPhone ? (
           <>
-            <p className="muted">Esto no usa el computador. En Safari: Compartir → Añadir a pantalla de inicio. La próxima vez ábrelo desde el icono, con el PC apagado.</p>
+            <p className="muted">En Safari: toca <strong>Compartir</strong> → <strong>Añadir a pantalla de inicio</strong>. Ábrelo siempre desde el icono (no desde una pestaña) para que el micrófono y la PWA funcionen bien.</p>
+            <p className="muted phone-hint">Cuando publiquemos una versión nueva, cierra Tommy por completo y vuelve a abrirlo desde el icono para refrescar.</p>
             <CopyRow value={PHONE_HOME} />
           </>
         ) : (

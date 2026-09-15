@@ -12,12 +12,61 @@ const DATA_DIR = path.join(__dirname, 'data')
 const STATE_FILE = path.join(DATA_DIR, 'state.json')
 const GROQ = 'https://api.groq.com/openai/v1'
 const PHONE_HOME = 'https://imroma0620.github.io/tommy-asistente/'
+const API_TOKEN = process.env.TOMMY_API_TOKEN || ''
+
+const SEED_PROJECTS = [
+  { key: 'arts-digital', nombre: 'Arts Digital Institute', descripcion: 'Cliente' },
+  { key: 'nutriq-baby', nombre: 'NutriQ Baby', descripcion: 'Cliente' },
+  { key: 'gran-chuleta', nombre: 'La Gran Chuleta', descripcion: 'Cliente / producto' },
+  { key: 'marcas-raiz', nombre: 'Marcas desde la raíz', descripcion: 'Mentoría / insignia' },
+  { key: 'partner-media', nombre: 'Clases Partner Media', descripcion: 'Formación' },
+  { key: 'bootcamp', nombre: 'Bootcamp', descripcion: 'Formación' },
+  { key: 'redes-diana', nombre: 'Redes sociales — Diana / IM ROMA', descripcion: 'Propio' },
+]
+
+function normName(s) {
+  return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function mergeSeeds(state) {
+  const next = { ...state }
+  const proyectos = [...(next.proyectos || [])]
+  const byName = new Map(proyectos.map((p) => [normName(p.nombre), p]))
+  for (const seed of SEED_PROJECTS) {
+    if (byName.has(normName(seed.nombre))) continue
+    proyectos.push({
+      id: `seed-proj-${seed.key}`,
+      nombre: seed.nombre,
+      descripcion: seed.descripcion,
+      tareas: [],
+      seeded: true,
+    })
+  }
+  next.proyectos = proyectos
+  const fecha = '2026-09-17'
+  const agenda = { ...(next.agenda || {}) }
+  const day = [...(agenda[fecha] || [])]
+  const ivan = 'Reunión con Iván'
+  if (!day.some((t) => t.id === 'seed-reunion-ivan-2026-09-17' || (normName(t.text) === normName(ivan) && t.time === '08:30'))) {
+    day.push({ id: 'seed-reunion-ivan-2026-09-17', text: ivan, time: '08:30', done: false, seeded: true })
+    agenda[fecha] = day
+  }
+  next.agenda = agenda
+  return next
+}
+
+function authorized(req) {
+  if (!API_TOKEN) return true
+  const header = req.headers.authorization || ''
+  const token = header.startsWith('Bearer ') ? header.slice(7) : ''
+  return token === API_TOKEN
+}
 
 function loadState() {
   try {
-    return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'))
+    return mergeSeeds(JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')))
   } catch {
-    return {}
+    return mergeSeeds({})
   }
 }
 
@@ -122,11 +171,45 @@ const server = http.createServer(async (req, res) => {
         const raw = await collect(req)
         const incoming = JSON.parse(raw.toString('utf8') || '{}')
         const current = loadState()
-        const next = { ...current, ...incoming }
+        const next = mergeSeeds({ ...current, ...incoming })
         saveState(next)
         json(res, 200, { ok: true })
         return
       }
+    }
+    if (url.pathname === '/api/assistant' && req.method === 'POST') {
+      if (!authorized(req)) {
+        json(res, 401, { error: 'Token inválido' })
+        return
+      }
+      const raw = await collect(req)
+      const action = JSON.parse(raw.toString('utf8') || '{}')
+      const state = loadState()
+      const now = Date.now()
+      if (action.type === 'create_project' || action.action === 'create_project') {
+        const nombre = String(action.nombre || '').trim()
+        if (nombre && !state.proyectos.some((p) => normName(p.nombre) === normName(nombre))) {
+          state.proyectos.push({ id: `api-proj-${now}`, nombre, descripcion: action.descripcion || '', tareas: [] })
+        }
+      } else if (action.type === 'agenda_event') {
+        const fecha = String(action.fecha || '').trim()
+        const texto = String(action.texto || '').trim()
+        if (fecha && texto) {
+          const agenda = { ...(state.agenda || {}) }
+          const list = [...(agenda[fecha] || [])]
+          list.push({ id: `api-agenda-${now}`, text: texto, time: action.hora || '', done: false })
+          agenda[fecha] = list
+          state.agenda = agenda
+        }
+      } else if (action.type === 'create_idea') {
+        const titulo = String(action.titulo || '').trim()
+        if (titulo) {
+          state.ideas = [{ id: `api-idea-${now}`, titulo, descripcion: action.descripcion || '', tipo: action.tipo || 'Reel', tags: [], estado: 'idea', destacada: false }, ...(state.ideas || [])]
+        }
+      }
+      saveState(mergeSeeds(state))
+      json(res, 200, { ok: true, state: loadState() })
+      return
     }
     if (url.pathname === '/web') {
       const target = url.searchParams.get('url') || ''
