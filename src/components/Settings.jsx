@@ -12,26 +12,18 @@ export default function Settings({ settings, profile, onChange, onProfile, onClo
           <button className="icon-btn" onClick={onClose} aria-label="Cerrar">✕</button>
         </div>
 
-        <h3>Tommy en el celular (sin el PC)</h3>
+        <h3>Para hablarle en el iPhone</h3>
         <p className="muted">
-          Esta es la web. En el iPhone: Safari → Compartir → Añadir a pantalla de inicio.
-          El computador puede estar apagado. Pega Groq y Higgsfield otra vez en el teléfono: esa copia es del teléfono.
+          No uses Grok ni pagues x.ai. Groq es otra cuenta, gratis, sin tarjeta.
+          Entra, crea la clave y pégala aquí una sola vez en este teléfono.
         </p>
-        <CopyRow value={TOMMY_WEB} />
-
-        <h3>Tommy autónomo (Grok Bot)</h3>
         <p className="muted">
-          Grok Bot no se pega aquí. Es la app que ya tienes en el PC. Ahí Tommy trabaja solo, con el portátil cerrado.
-          En Grok Bot: New → Create your own. Nombre: Tommy. Oficio: Asistente de IM ROMA. Pega este perfil:
+          <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer">
+            Abrir Groq y crear la clave gsk_
+          </a>
         </p>
-        <textarea className="paste" readOnly rows={10} value={GROK_BOT_PROFILE} />
-        <CopyRow value={GROK_BOT_PROFILE} preview="Perfil de Tommy para Grok Bot" />
-        <p className="muted">Cuando el bot exista, pégales esta rutina para que arranque solo a las 8:00 (Colombia):</p>
-        <textarea className="paste" readOnly rows={5} value={GROK_BOT_ROUTINE} />
-        <CopyRow value={GROK_BOT_ROUTINE} preview="Rutina diaria de las 8:00" />
-
         <label className="field">
-          <span>Clave de Groq (esta web / el teléfono)</span>
+          <span>Clave de Groq (empieza por gsk_)</span>
           <input
             type="password"
             value={settings.apiKey}
@@ -40,7 +32,26 @@ export default function Settings({ settings, profile, onChange, onProfile, onClo
             onChange={(e) => onChange({ apiKey: e.target.value.trim() })}
           />
         </label>
-        <p className="muted">Gratis, para hablarle a esta web. Empieza por gsk_. En el iPhone pégala una vez.</p>
+        {String(settings.apiKey || '').startsWith('gsk_') ? (
+          <p className="muted">Listo. Ya puedes hablarle a Tommy en este teléfono.</p>
+        ) : null}
+
+        <h3>Tommy en el celular</h3>
+        <p className="muted">
+          En Safari: Compartir → Añadir a pantalla de inicio. Después ábrelo desde el icono.
+        </p>
+        <CopyRow value={TOMMY_WEB} />
+
+        <h3>Tommy autónomo (Grok Bot, en el PC)</h3>
+        <p className="muted">
+          Eso no se pega en el iPhone. Es la app Grok Bot del computador. Ahí Tommy trabaja solo.
+          Nombre: Tommy. Oficio: Asistente de IM ROMA. Perfil:
+        </p>
+        <textarea className="paste" readOnly rows={10} value={GROK_BOT_PROFILE} />
+        <CopyRow value={GROK_BOT_PROFILE} preview="Perfil de Tommy para Grok Bot" />
+        <p className="muted">Rutina de las 8:00 (Colombia):</p>
+        <textarea className="paste" readOnly rows={5} value={GROK_BOT_ROUTINE} />
+        <CopyRow value={GROK_BOT_ROUTINE} preview="Rutina diaria de las 8:00" />
 
         <h3>Higgsfield (esta web)</h3>
         <p className="muted">

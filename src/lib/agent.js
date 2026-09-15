@@ -242,7 +242,7 @@ export async function talkToTommy({ apiKey, grokKey, history, text, audio, files
   const groqOk = String(apiKey || '').startsWith('gsk_')
   const grokOk = isGrokKey(grokKey)
   if (!grokOk && !groqOk) {
-    throw new Error('Pega en Ajustes la clave de Grok (console.x.ai) para trabajar en línea.')
+    throw new Error('No es Grok. En Ajustes abre Groq (gratis), crea una clave gsk_ y pégala una vez.')
   }
 
   let userText = (text || '').trim()
