@@ -1,4 +1,4 @@
-import { defaultRemoteSlice } from './seeds.mjs'
+import { applyRemoteSeeds, defaultRemoteSlice } from './seeds.mjs'
 
 const WORKSPACE = process.env.TOMMY_WORKSPACE || 'im-roma-diana'
 const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL
@@ -68,9 +68,9 @@ async function supabaseSet(state) {
 
 export async function loadRemoteState() {
   const fromRedis = await redisGet()
-  if (fromRedis) return fromRedis
+  if (fromRedis) return applyRemoteSeeds(fromRedis)
   const fromSb = await supabaseGet()
-  if (fromSb) return fromSb
+  if (fromSb) return applyRemoteSeeds(fromSb)
   return defaultRemoteSlice()
 }
 

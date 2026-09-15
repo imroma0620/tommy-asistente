@@ -1,5 +1,5 @@
 import { checkApiToken, corsHeaders, loadRemoteState, saveRemoteState } from './_lib/stateStore.mjs'
-import { mergeAgenda, mergeProjects } from './_lib/seeds.mjs'
+import { mergeAgenda, mergeProjects, mergeRecordatorios } from './_lib/seeds.mjs'
 
 function parseBody(req) {
   let body = req.body
@@ -109,6 +109,8 @@ export default async function handler(req, res) {
   state.proyectos = seededProjects.items
   const seededAgenda = mergeAgenda(state.agenda || {})
   state.agenda = seededAgenda.agenda
+  const seededReminders = mergeRecordatorios(state.recordatorios || [])
+  state.recordatorios = seededReminders.recordatorios
   state.meta = { ...(state.meta || {}), updatedAt: now }
 
   await saveRemoteState(state)

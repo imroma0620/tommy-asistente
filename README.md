@@ -2,7 +2,9 @@
 
 PWA para Diana (IM ROMA, Cali): chat con Grok, agenda, recordatorios, proyectos, ideas, Google Calendar y Higgsfield.
 
-**Sitio en vivo:** [https://imroma0620.github.io/tommy-asistente/](https://imroma0620.github.io/tommy-asistente/)
+**Sitio en vivo:** [https://imroma0620.github.io/tommy-asistente/](https://imroma0620.github.io/tommy-asistente/) · **API sync:** [https://tommy-asistente.vercel.app](https://tommy-asistente.vercel.app)
+
+> **Importante (Grok Bot / Vercel):** sin Upstash o Supabase en Vercel, `PUT /api/state` devuelve `persisted: false` y el bot no guarda cambios. Sigue la [**checklist en SETUP.md**](SETUP.md).
 
 Marca: midnight `#0D0D1A`, violet `#4C3AAF`, lavender `#B8A4F0`, fondo `#F7F6FF` · Cinzel + Montserrat · español tú.
 
@@ -36,16 +38,22 @@ VITE_TOMMY_WORKSPACE=im-roma-diana
 
 ### Opción B — API en Vercel
 
+Proyecto en producción: **`https://tommy-asistente.vercel.app`**.
+
 1. Conecta este repo a [Vercel](https://vercel.com).
-2. Variables de entorno del servidor (una de persistencia):
-   - `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`, **o**
-   - `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE`
-3. Opcional: `TOMMY_API_TOKEN` para escrituras autenticadas.
-4. En el build de GitHub Pages:
+2. **Obligatorio para que Grok Bot persista escrituras** — variables del **servidor** (elige una):
+   - **Upstash:** `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `TOMMY_WORKSPACE=im-roma-diana`
+   - **Supabase:** `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE`, `TOMMY_WORKSPACE=im-roma-diana`
+3. Redeploy después de guardar variables. Sin ellas, `GET /api/state` muestra datos semilla, pero `PUT` responde `persisted: false`.
+4. Opcional: `TOMMY_API_TOKEN` para escrituras autenticadas.
+5. En el build de GitHub Pages:
 
 ```bash
-VITE_SYNC_URL=https://tu-proyecto.vercel.app
+VITE_SYNC_URL=https://tommy-asistente.vercel.app
+VITE_TOMMY_WORKSPACE=im-roma-diana
 ```
+
+Detalle paso a paso: [**SETUP.md**](SETUP.md).
 
 ### PC local (sync incluida)
 
@@ -62,7 +70,8 @@ Abre `http://localhost:8787`. El estado vive en `data/state.json`.
 Al abrir la app se **añaden si faltan** (por nombre):
 
 - Arts Digital Institute, NutriQ Baby, La Gran Chuleta, Marcas desde la raíz, Clases Partner Media, Bootcamp, Redes sociales — Diana / IM ROMA
-- Agenda: **2026-09-17 08:30** (America/Bogotá) — *Reunión con Iván*
+- Agenda (America/Bogotá): clases **mar–jue 2026-09-15…17 a las 18:30** (*Clase 6:30–9:30 p. m.*) + **2026-09-17 08:30** *Reunión con Iván* (conviven en el mismo día)
+- Recordatorios: **17:50** esos tres días — *En 40 min: clase 6:30–9:30 p. m.* (prioridad alta)
 
 ## API para Grok Bot u otro asistente
 

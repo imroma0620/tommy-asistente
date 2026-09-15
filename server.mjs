@@ -4,6 +4,7 @@ import path from 'node:path'
 import os from 'node:os'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { applyRemoteSeeds, defaultRemoteSlice } from './api/_lib/seeds.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DIST = path.join(__dirname, 'dist')
@@ -14,47 +15,6 @@ const GROQ = 'https://api.groq.com/openai/v1'
 const PHONE_HOME = 'https://imroma0620.github.io/tommy-asistente/'
 const API_TOKEN = process.env.TOMMY_API_TOKEN || ''
 
-const SEED_PROJECTS = [
-  { key: 'arts-digital', nombre: 'Arts Digital Institute', descripcion: 'Cliente' },
-  { key: 'nutriq-baby', nombre: 'NutriQ Baby', descripcion: 'Cliente' },
-  { key: 'gran-chuleta', nombre: 'La Gran Chuleta', descripcion: 'Cliente / producto' },
-  { key: 'marcas-raiz', nombre: 'Marcas desde la raíz', descripcion: 'Mentoría / insignia' },
-  { key: 'partner-media', nombre: 'Clases Partner Media', descripcion: 'Formación' },
-  { key: 'bootcamp', nombre: 'Bootcamp', descripcion: 'Formación' },
-  { key: 'redes-diana', nombre: 'Redes sociales — Diana / IM ROMA', descripcion: 'Propio' },
-]
-
-function normName(s) {
-  return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ')
-}
-
-function mergeSeeds(state) {
-  const next = { ...state }
-  const proyectos = [...(next.proyectos || [])]
-  const byName = new Map(proyectos.map((p) => [normName(p.nombre), p]))
-  for (const seed of SEED_PROJECTS) {
-    if (byName.has(normName(seed.nombre))) continue
-    proyectos.push({
-      id: `seed-proj-${seed.key}`,
-      nombre: seed.nombre,
-      descripcion: seed.descripcion,
-      tareas: [],
-      seeded: true,
-    })
-  }
-  next.proyectos = proyectos
-  const fecha = '2026-09-17'
-  const agenda = { ...(next.agenda || {}) }
-  const day = [...(agenda[fecha] || [])]
-  const ivan = 'Reunión con Iván'
-  if (!day.some((t) => t.id === 'seed-reunion-ivan-2026-09-17' || (normName(t.text) === normName(ivan) && t.time === '08:30'))) {
-    day.push({ id: 'seed-reunion-ivan-2026-09-17', text: ivan, time: '08:30', done: false, seeded: true })
-    agenda[fecha] = day
-  }
-  next.agenda = agenda
-  return next
-}
-
 function authorized(req) {
   if (!API_TOKEN) return true
   const header = req.headers.authorization || ''
@@ -64,9 +24,9 @@ function authorized(req) {
 
 function loadState() {
   try {
-    return mergeSeeds(JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')))
+    return applyRemoteSeeds(JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')))
   } catch {
-    return mergeSeeds({})
+    return defaultRemoteSlice()
   }
 }
 
