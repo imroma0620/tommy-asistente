@@ -1,16 +1,25 @@
 {
-  "name": "Tommy",
+  "name": "Tommy · IM ROMA",
   "short_name": "Tommy",
+  "description": "Asistente de IM ROMA",
+  "lang": "es",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#FFFFFF",
-  "theme_color": "#FFFFFF",
+  "orientation": "portrait",
+  "background_color": "#0D0D1A",
+  "theme_color": "#4C3AAF",
   "icons": [
     {
       "src": "./tommy.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "./tommy.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

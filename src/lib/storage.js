@@ -1,4 +1,12 @@
 import { IDENTITY } from './identity'
+import { applySeedMerge } from './seeds'
+import {
+  cloudSnapshot,
+  mergeCloudLocal,
+  pullRemoteState,
+  pushRemoteState,
+  syncEnabled,
+} from './syncRemote'
 
 const KEYS = {
   agenda: 'tommy_agenda',
@@ -46,19 +54,31 @@ function snapshotAll() {
   }
 }
 
+function workSnapshot() {
+  return {
+    agenda: getAgenda(),
+    recordatorios: getReminders(),
+    proyectos: getProjects(),
+    ideas: getIdeas(),
+  }
+}
+
+function persistWorkSlice(slice) {
+  if (slice.agenda) localStorage.setItem(KEYS.agenda, JSON.stringify(slice.agenda))
+  if (slice.recordatorios) localStorage.setItem(KEYS.recordatorios, JSON.stringify(slice.recordatorios))
+  if (slice.proyectos) localStorage.setItem(KEYS.proyectos, JSON.stringify(slice.proyectos))
+  if (slice.ideas) localStorage.setItem(KEYS.ideas, JSON.stringify(slice.ideas))
+}
+
 let pushTimer
-let localApi = false
+let cloudSync = false
 
 function schedulePush() {
-  if (!localApi) return
+  if (!cloudSync) return
   clearTimeout(pushTimer)
   pushTimer = setTimeout(() => {
-    fetch('/api/state', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(snapshotAll()),
-    }).catch(() => {})
-  }, 300)
+    pushRemoteState(cloudSnapshot(workSnapshot())).catch(() => {})
+  }, 400)
 }
 
 function profileHasContent(profile) {
@@ -66,66 +86,61 @@ function profileHasContent(profile) {
 }
 
 export async function syncOnBoot() {
-  let remote = {}
-  try {
-    const res = await Promise.race([
-      fetch('/api/state'),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000)),
-    ])
-    if (res.ok) {
-      remote = await res.json()
-      localApi = true
+  applyLocalSeeds()
+
+  const pull = await pullRemoteState()
+  if (pull.ok) {
+    cloudSync = true
+    const remote = pull.state || {}
+    if (remote.settings || remote.profile || remote.conversations) {
+      const localSettings = getSettings()
+      const mergedSettings = {
+        ...(remote.settings || {}),
+        ...localSettings,
+        apiKey: localSettings.apiKey || remote.settings?.apiKey || '',
+        grokKey: localSettings.grokKey || remote.settings?.grokKey || '',
+        googleClientId: localSettings.googleClientId || remote.settings?.googleClientId || '',
+        higgsfieldKeyId: localSettings.higgsfieldKeyId || remote.settings?.higgsfieldKeyId || '',
+        higgsfieldSecret: localSettings.higgsfieldSecret || remote.settings?.higgsfieldSecret || '',
+      }
+      localStorage.setItem(KEYS.settings, JSON.stringify(mergedSettings))
+
+      if (!profileHasContent(getProfile()) && remote.profile) {
+        localStorage.setItem(KEYS.profile, JSON.stringify(remote.profile))
+      }
+
+      const localConvos = read(KEYS.conversations, [])
+      if (!localConvos.length && remote.conversations?.length) {
+        localStorage.setItem(KEYS.conversations, JSON.stringify(remote.conversations))
+        if (remote.activeId) localStorage.setItem(KEYS.activeId, JSON.stringify(remote.activeId))
+      } else if (!getChat().length && remote.chat?.length) {
+        localStorage.setItem(KEYS.chat, JSON.stringify(remote.chat))
+      }
+      if (!getKnowledge().length && remote.knowledge?.length) {
+        localStorage.setItem(KEYS.knowledge, JSON.stringify(remote.knowledge))
+      }
     }
-  } catch {
-    return
+
+    const merged = mergeCloudLocal(workSnapshot(), remote)
+    persistWorkSlice(merged)
+  } else if (syncEnabled()) {
+    cloudSync = true
   }
 
-  const localSettings = getSettings()
-  const mergedSettings = {
-    ...(remote.settings || {}),
-    ...localSettings,
-    apiKey: localSettings.apiKey || remote.settings?.apiKey || '',
-    grokKey: localSettings.grokKey || remote.settings?.grokKey || '',
-    googleClientId: localSettings.googleClientId || remote.settings?.googleClientId || '',
-    higgsfieldKeyId: localSettings.higgsfieldKeyId || remote.settings?.higgsfieldKeyId || '',
-    higgsfieldSecret: localSettings.higgsfieldSecret || remote.settings?.higgsfieldSecret || '',
-  }
-  localStorage.setItem(KEYS.settings, JSON.stringify(mergedSettings))
-
-  if (!profileHasContent(getProfile()) && remote.profile) {
-    localStorage.setItem(KEYS.profile, JSON.stringify(remote.profile))
-  }
   seedIdentity()
-
-  const localConvos = read(KEYS.conversations, [])
-  if (!localConvos.length && remote.conversations?.length) {
-    localStorage.setItem(KEYS.conversations, JSON.stringify(remote.conversations))
-    if (remote.activeId) localStorage.setItem(KEYS.activeId, JSON.stringify(remote.activeId))
-  } else if (!getChat().length && remote.chat?.length) {
-    localStorage.setItem(KEYS.chat, JSON.stringify(remote.chat))
-  }
   migrateConversations()
-  if (!Object.keys(getAgenda()).length && remote.agenda) {
-    localStorage.setItem(KEYS.agenda, JSON.stringify(remote.agenda))
-  }
-  if (!getReminders().length && remote.recordatorios) {
-    localStorage.setItem(KEYS.recordatorios, JSON.stringify(remote.recordatorios))
-  }
-  if (!getProjects().length && remote.proyectos) {
-    localStorage.setItem(KEYS.proyectos, JSON.stringify(remote.proyectos))
-  }
-  if (!getIdeas().length && remote.ideas) {
-    localStorage.setItem(KEYS.ideas, JSON.stringify(remote.ideas))
-  }
-  if (!getKnowledge().length && remote.knowledge?.length) {
-    localStorage.setItem(KEYS.knowledge, JSON.stringify(remote.knowledge))
-  }
+  applyLocalSeeds()
 
-  await fetch('/api/state', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(snapshotAll()),
-  }).catch(() => {})
+  if (cloudSync) {
+    await pushRemoteState(cloudSnapshot(workSnapshot())).catch(() => {})
+  }
+}
+
+/** Fusiona proyectos IM ROMA e Iván aunque no haya nube. */
+export function applyLocalSeeds() {
+  const merged = applySeedMerge(workSnapshot())
+  persistWorkSlice(merged)
+  return merged
 }
 
 export function getSettings() {
