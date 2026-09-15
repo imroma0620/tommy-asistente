@@ -24,6 +24,7 @@ export default function Ideas({ snapshot, onDelete, onRefresh }) {
     <div className="module">
       <div className="module-head">
         <div>
+          <p className="kicker">Contenido</p>
           <h2>Ideas de contenido</h2>
           <p>Banco de ideas. Tommy las estructura si le dictas una suelta.</p>
         </div>

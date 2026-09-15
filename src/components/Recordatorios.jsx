@@ -21,6 +21,7 @@ export default function Recordatorios({ snapshot, onDelete, onRefresh }) {
     <div className="module">
       <div className="module-head">
         <div>
+          <p className="kicker">Seguimiento</p>
           <h2>Recordatorios</h2>
           <p>Cosas clave con fecha. Tommy también puede crearlos por chat o audio.</p>
         </div>

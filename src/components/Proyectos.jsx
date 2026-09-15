@@ -33,6 +33,7 @@ export default function Proyectos({ snapshot, onDelete, onRefresh }) {
     <div className="module">
       <div className="module-head">
         <div>
+          <p className="kicker">Operación</p>
           <h2>Proyectos</h2>
           <p>Organiza trabajo en columnas. Tommy puede crear y mover tareas si se lo pides.</p>
         </div>

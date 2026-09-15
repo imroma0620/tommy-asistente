@@ -7,7 +7,7 @@ export default function Phone({ open, onClose }) {
   if (!open) return null
   const onPhone = /iPhone|iPad|Android/i.test(navigator.userAgent)
   const installed = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone
-  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&bgcolor=0D0D1A&color=F7F6FF&data=${encodeURIComponent(PHONE_HOME)}`
+  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&bgcolor=FFFFFF&color=0D0D1A&data=${encodeURIComponent(PHONE_HOME)}`
 
   return (
     <div className="sheet-overlay" onClick={onClose}>

@@ -348,12 +348,18 @@ export default function App() {
             <PanelLeft size={18} />
           </button>
           <img className="avatar" src="./tommy.png" alt="Tommy" />
-          <div>
-            <h1>Tommy</h1>
-            <p>IM ROMA · {busy ? 'Trabajando…' : recording ? 'Escuchando…' : calOk ? 'Google conectado' : 'Listo'}</p>
+          <div className="brand-copy">
+            <h1>IM ROMA</h1>
+            <p className="brand-status">{busy ? 'Trabajando' : recording ? 'Escuchando' : calOk ? 'Google' : 'Listo'}</p>
           </div>
+          <span className="brand-rule" aria-hidden="true" />
+          <p className="brand-sub">Tommy · Asistente</p>
         </div>
         <div className="top-actions">
+          <span className="status-pill">
+            <span className="status-dot" />
+            {busy ? 'Trabajando' : recording ? 'Escuchando' : calOk ? 'Google conectado' : 'Sistema listo'}
+          </span>
           <button className="icon-btn" onClick={newConversation} title="Nueva conversación" aria-label="Nueva conversación">
             <Plus size={18} />
           </button>

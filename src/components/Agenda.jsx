@@ -72,6 +72,7 @@ export default function Agenda({ snapshot, events = [], connected, onConnect, on
     <div className="module">
       <div className="module-head">
         <div>
+          <p className="kicker">Calendario</p>
           <h2>Agenda</h2>
           <p>Semana y mes. Lo de Tommy y lo de Google, en el mismo calendario.</p>
         </div>

@@ -1,1 +1,1 @@
-{"name":"Tommy","short_name":"Tommy","description":"Asistente de IM ROMA","start_url":"./","display":"standalone","background_color":"#0D0D1A","theme_color":"#0D0D1A","lang":"en","scope":"./","icons":[{"src":"./tommy.png","sizes":"512x512","type":"image/png","purpose":"any"}]}
+{"name":"Tommy","short_name":"Tommy","description":"Asistente de IM ROMA","start_url":"./","display":"standalone","background_color":"#FFFFFF","theme_color":"#FFFFFF","lang":"en","scope":"./","icons":[{"src":"./tommy.png","sizes":"512x512","type":"image/png","purpose":"any"}]}

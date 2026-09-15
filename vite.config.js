@@ -22,8 +22,8 @@ export default defineConfig({
         start_url: './',
         scope: './',
         display: 'standalone',
-        background_color: '#0D0D1A',
-        theme_color: '#0D0D1A',
+        background_color: '#FFFFFF',
+        theme_color: '#FFFFFF',
         icons: [
           { src: './tommy.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
         ],
