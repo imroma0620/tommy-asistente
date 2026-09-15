@@ -598,7 +598,7 @@ function labelAction(action) {
     crear_proyecto: 'Creé un proyecto',
     agregar_tarea_proyecto: 'Sumé una tarea a un proyecto',
     mover_tarea_proyecto: 'Moví una tarea de proyecto',
-    guardar_idea: 'Estructuré y guardé una idea',
+    guardar_idea: 'La pegué en el mood board',
     actualizar_idea: 'Actualicé una idea',
     completar_tarea_agenda: 'Marqué una tarea de la agenda',
     completar_recordatorio: 'Marqué un recordatorio',

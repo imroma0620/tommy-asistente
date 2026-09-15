@@ -1,59 +1,141 @@
+import { useRef, useState } from 'react'
+import { Plus } from 'lucide-react'
 import { getIdeas, saveIdeas } from '../lib/storage'
 
-export default function Ideas({ snapshot, onDelete, onRefresh }) {
-  const add = (form) => {
-    const titulo = form.get('titulo')?.trim()
-    if (!titulo) return
-    saveIdeas([{
-      id: Date.now(),
-      titulo,
-      descripcion: form.get('descripcion') || '',
-      tipo: form.get('tipo') || 'Reel',
-      tags: (form.get('tags') || '').split(',').map((t) => t.trim()).filter(Boolean),
-      estado: 'idea',
-      destacada: false,
-    }, ...getIdeas()])
-    onRefresh()
+const NOTE_COLORS = ['#FFFFFF', '#F7F6FF', '#EAE5FF', '#FFF8F0', '#F3EEFF']
+
+function noteColor(idea, index) {
+  if (idea.color && NOTE_COLORS.includes(idea.color)) return idea.color
+  return NOTE_COLORS[Math.abs(Number(idea.id) || index) % NOTE_COLORS.length]
+}
+
+function emptyNote() {
+  return {
+    id: Date.now(),
+    titulo: '',
+    descripcion: '',
+    tipo: 'Nota',
+    tags: [],
+    estado: 'idea',
+    destacada: false,
+    color: NOTE_COLORS[getIdeas().length % NOTE_COLORS.length],
   }
-  const setEstado = (id, estado) => {
-    saveIdeas(getIdeas().map((i) => i.id === id ? { ...i, estado } : i))
+}
+
+export default function Ideas({ snapshot, onDelete, onRefresh }) {
+  const [draft, setDraft] = useState('')
+  const titleRefs = useRef({})
+
+  const persist = (next) => {
+    saveIdeas(next)
     onRefresh()
   }
 
+  const addNote = (titulo = '', descripcion = '') => {
+    const note = { ...emptyNote(), titulo, descripcion }
+    persist([note, ...getIdeas()])
+    setTimeout(() => titleRefs.current[note.id]?.focus(), 40)
+  }
+
+  const addFromBar = (event) => {
+    event.preventDefault()
+    const text = draft.trim()
+    if (!text) {
+      addNote()
+      return
+    }
+    addNote(text)
+    setDraft('')
+  }
+
+  const patch = (id, fields) => {
+    persist(getIdeas().map((idea) => (idea.id === id ? { ...idea, ...fields } : idea)))
+  }
+
+  const ideas = snapshot.ideas || []
+
   return (
-    <div className="module">
+    <div className="module moodboard-page">
       <div className="module-head">
         <div>
-          <p className="kicker">Contenido</p>
-          <h2>Ideas de contenido</h2>
-          <p>Banco de ideas. Tommy las estructura si le dictas una suelta.</p>
+          <p className="kicker">Tablero</p>
+          <h2>Mood board</h2>
+          <p>Post-its para guardar ideas sueltas. Toca un recuadro para escribir.</p>
+        </div>
+        <div className="head-actions">
+          <button type="button" className="send-text" onClick={() => addNote()}>
+            <Plus size={14} /> Nueva nota
+          </button>
         </div>
       </div>
-      <form className="add-stack" onSubmit={(e) => { e.preventDefault(); add(new FormData(e.target)); e.target.reset() }}>
-        <input name="titulo" placeholder="Título de la idea" required />
-        <textarea name="descripcion" placeholder="Ángulo, guion, nota…" />
-        <div className="add-row">
-          <select name="tipo">
-            {['Reel', 'Post', 'Story', 'Video largo', 'Blog', 'Podcast'].map((t) => <option key={t}>{t}</option>)}
-          </select>
-          <input name="tags" placeholder="tags, separados, por coma" />
-          <button className="send-text" type="submit">Guardar idea</button>
-        </div>
+
+      <form className="mood-bar" onSubmit={addFromBar}>
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Una idea, un recorte, una frase…"
+          aria-label="Nueva idea"
+        />
+        <button className="send-text" type="submit">Pegar en el tablero</button>
       </form>
-      <div className="idea-grid">
-        {snapshot.ideas.length === 0 && <p className="empty">No hay ideas. Escribe una o dile a Tommy: “estructura esta idea para un reel…”.</p>}
-        {snapshot.ideas.map((idea) => (
-          <article key={idea.id} className="idea-card">
-            <div className="row">
-              <strong>{idea.titulo}</strong>
-              <button type="button" onClick={() => onDelete('idea', { id: idea.id })}>Eliminar</button>
-            </div>
-            <p className="meta">{idea.tipo}</p>
-            {idea.descripcion && <p>{idea.descripcion}</p>}
-            <div className="states">
-              {['idea', 'desarrollo', 'listo', 'publicado'].map((s) => (
-                <button key={s} type="button" className={idea.estado === s ? 'on' : ''} onClick={() => setEstado(idea.id, s)}>{s}</button>
+
+      <div className="pinboard">
+        {ideas.length === 0 && (
+          <button type="button" className="postit postit-ghost" onClick={() => addNote()}>
+            <span className="postit-pin" />
+            <strong>Añade un post-it</strong>
+            <p>Toca aquí o escribe arriba. El tablero es tuyo: notas, ángulos, frases, lo que quieras retener.</p>
+          </button>
+        )}
+        {ideas.map((idea, index) => (
+          <article
+            key={idea.id}
+            className="postit"
+            style={{
+              background: noteColor(idea, index),
+              '--tilt': `${((Number(idea.id) % 7) - 3) * 0.55}deg`,
+            }}
+          >
+            <span className="postit-pin" />
+            <div className="postit-colors">
+              {NOTE_COLORS.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  className={noteColor(idea, index) === color ? 'on' : ''}
+                  style={{ background: color }}
+                  aria-label="Color del post-it"
+                  onClick={() => patch(idea.id, { color })}
+                />
               ))}
+            </div>
+            <textarea
+              ref={(node) => { titleRefs.current[idea.id] = node }}
+              className="postit-title"
+              value={idea.titulo}
+              placeholder="Título"
+              rows={2}
+              onChange={(e) => patch(idea.id, { titulo: e.target.value })}
+            />
+            <textarea
+              className="postit-body"
+              value={idea.descripcion}
+              placeholder="La idea, el ángulo, una imagen mental…"
+              rows={5}
+              onChange={(e) => patch(idea.id, { descripcion: e.target.value })}
+            />
+            <div className="postit-foot">
+              <select
+                value={idea.tipo || 'Nota'}
+                onChange={(e) => patch(idea.id, { tipo: e.target.value })}
+              >
+                {['Nota', 'Reel', 'Post', 'Story', 'Video largo', 'Blog', 'Podcast', 'Campaña'].map((tipo) => (
+                  <option key={tipo}>{tipo}</option>
+                ))}
+              </select>
+              <button type="button" onClick={() => onDelete('idea', { id: idea.id })}>
+                Quitar
+              </button>
             </div>
           </article>
         ))}

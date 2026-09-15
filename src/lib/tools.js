@@ -535,14 +535,16 @@ export async function executeTool(name, args = {}, context = {}) {
     case 'listar_proyectos':
       return { proyectos: getProjects() }
     case 'guardar_idea': {
+      const paleta = ['#FFFFFF', '#F7F6FF', '#EAE5FF', '#FFF8F0', '#F3EEFF']
       const idea = {
         id: Date.now(),
         titulo: args.titulo,
         descripcion: args.descripcion || '',
-        tipo: args.tipo || 'Otro',
+        tipo: args.tipo || 'Nota',
         tags: args.tags || [],
         estado: args.estado || 'idea',
         destacada: false,
+        color: paleta[getIdeas().length % paleta.length],
       }
       saveIdeas([idea, ...getIdeas()])
       return { ok: true, idea }
