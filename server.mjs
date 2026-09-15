@@ -4,6 +4,7 @@ import path from 'node:path'
 import os from 'node:os'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { applyRemoteSeeds, defaultRemoteSlice } from './api/_lib/seeds.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DIST = path.join(__dirname, 'dist')
@@ -12,12 +13,20 @@ const DATA_DIR = path.join(__dirname, 'data')
 const STATE_FILE = path.join(DATA_DIR, 'state.json')
 const GROQ = 'https://api.groq.com/openai/v1'
 const PHONE_HOME = 'https://imroma0620.github.io/tommy-asistente/'
+const API_TOKEN = process.env.TOMMY_API_TOKEN || ''
+
+function authorized(req) {
+  if (!API_TOKEN) return true
+  const header = req.headers.authorization || ''
+  const token = header.startsWith('Bearer ') ? header.slice(7) : ''
+  return token === API_TOKEN
+}
 
 function loadState() {
   try {
-    return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'))
+    return applyRemoteSeeds(JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')))
   } catch {
-    return {}
+    return defaultRemoteSlice()
   }
 }
 
@@ -122,11 +131,45 @@ const server = http.createServer(async (req, res) => {
         const raw = await collect(req)
         const incoming = JSON.parse(raw.toString('utf8') || '{}')
         const current = loadState()
-        const next = { ...current, ...incoming }
+        const next = mergeSeeds({ ...current, ...incoming })
         saveState(next)
         json(res, 200, { ok: true })
         return
       }
+    }
+    if (url.pathname === '/api/assistant' && req.method === 'POST') {
+      if (!authorized(req)) {
+        json(res, 401, { error: 'Token inválido' })
+        return
+      }
+      const raw = await collect(req)
+      const action = JSON.parse(raw.toString('utf8') || '{}')
+      const state = loadState()
+      const now = Date.now()
+      if (action.type === 'create_project' || action.action === 'create_project') {
+        const nombre = String(action.nombre || '').trim()
+        if (nombre && !state.proyectos.some((p) => normName(p.nombre) === normName(nombre))) {
+          state.proyectos.push({ id: `api-proj-${now}`, nombre, descripcion: action.descripcion || '', tareas: [] })
+        }
+      } else if (action.type === 'agenda_event') {
+        const fecha = String(action.fecha || '').trim()
+        const texto = String(action.texto || '').trim()
+        if (fecha && texto) {
+          const agenda = { ...(state.agenda || {}) }
+          const list = [...(agenda[fecha] || [])]
+          list.push({ id: `api-agenda-${now}`, text: texto, time: action.hora || '', done: false })
+          agenda[fecha] = list
+          state.agenda = agenda
+        }
+      } else if (action.type === 'create_idea') {
+        const titulo = String(action.titulo || '').trim()
+        if (titulo) {
+          state.ideas = [{ id: `api-idea-${now}`, titulo, descripcion: action.descripcion || '', tipo: action.tipo || 'Reel', tags: [], estado: 'idea', destacada: false }, ...(state.ideas || [])]
+        }
+      }
+      saveState(mergeSeeds(state))
+      json(res, 200, { ok: true, state: loadState() })
+      return
     }
     if (url.pathname === '/web') {
       const target = url.searchParams.get('url') || ''

@@ -19,6 +19,7 @@ function emptyNote() {
     estado: 'idea',
     destacada: false,
     color: NOTE_COLORS[getIdeas().length % NOTE_COLORS.length],
+    updatedAt: Date.now(),
   }
 }
 
@@ -49,7 +50,9 @@ export default function Ideas({ snapshot, onDelete, onRefresh }) {
   }
 
   const patch = (id, fields) => {
-    persist(getIdeas().map((idea) => (idea.id === id ? { ...idea, ...fields } : idea)))
+    persist(getIdeas().map((idea) => (
+      idea.id === id ? { ...idea, ...fields, updatedAt: Date.now() } : idea
+    )))
   }
 
   const ideas = snapshot.ideas || []

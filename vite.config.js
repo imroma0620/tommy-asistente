@@ -16,16 +16,19 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['tommy.png', 'roma.png'],
       manifest: {
-        name: 'Tommy',
+        name: 'Tommy · IM ROMA',
         short_name: 'Tommy',
-        description: 'Asistente de IM ROMA',
+        description: 'Asistente de IM ROMA — agenda, proyectos e ideas',
+        lang: 'es',
         start_url: './',
         scope: './',
         display: 'standalone',
-        background_color: '#FFFFFF',
-        theme_color: '#FFFFFF',
+        orientation: 'portrait',
+        background_color: '#0D0D1A',
+        theme_color: '#4C3AAF',
         icons: [
           { src: './tommy.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: './tommy.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {
@@ -38,6 +41,10 @@ export default defineConfig({
     host: true,
     port: 5174,
     proxy: {
+      '/api': {
+        target: 'http://localhost:8787',
+        changeOrigin: true,
+      },
       '/groq': {
         target: 'https://api.groq.com',
         changeOrigin: true,
