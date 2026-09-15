@@ -11,7 +11,7 @@ import Conversations from './components/Conversations'
 import { blobToBase64, startRecording } from './lib/audio'
 import { prepareFiles } from './lib/files'
 import { talkToTommy, toChatHistory, isGrokKey } from './lib/agent'
-import { calendarConnected, captureCalendarRedirect, listCalendarEvents } from './lib/calendar'
+import { calendarConnected, captureCalendarRedirect, listCalendarEvents, refreshCalendar } from './lib/calendar'
 import {
   getChat,
   getReminders,
@@ -65,9 +65,7 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [recording, setRecording] = useState(false)
   const [recordSecs, setRecordSecs] = useState(0)
-  const [showSettings, setShowSettings] = useState(
-    !isGrokKey(getSettings().grokKey) && !String(getSettings().apiKey || '').startsWith('gsk_'),
-  )
+  const [showSettings, setShowSettings] = useState(false)
   const [showPhone, setShowPhone] = useState(false)
   const [inboxOpen, setInboxOpen] = useState(false)
   const [showCalendar, setShowCalendar] = useState(false)
@@ -95,7 +93,7 @@ export default function App() {
     }
     if (back.ok) setCalOk(true)
     let alive = true
-    syncOnBoot().then(() => {
+    syncOnBoot().then(async () => {
       if (!alive) return
       seedIdentity()
       setSettings(getSettings())
@@ -111,6 +109,10 @@ export default function App() {
       if (saved.length) setMessages(saved)
       const next = getSettings()
       if (isGrokKey(next.grokKey) || String(next.apiKey || '').startsWith('gsk_')) setShowSettings(false)
+      if (!calendarConnected()) {
+        const token = await refreshCalendar(next.googleClientId)
+        if (token) setCalOk(true)
+      }
     })
     return () => { alive = false }
   }, [])
@@ -207,7 +209,7 @@ export default function App() {
     if ((!trimmed && !audio && files.length === 0) || busy) return
     if (!isGrokKey(settings.grokKey) && !String(settings.apiKey || '').startsWith('gsk_')) {
       setShowSettings(true)
-      setErrorBanner('Pega en Ajustes la clave de Grok (xai-...) para trabajar en línea.')
+      setErrorBanner('No es Grok. En Ajustes abre Groq (gratis), crea una clave gsk_ y pégala una vez en este teléfono.')
       return
     }
 

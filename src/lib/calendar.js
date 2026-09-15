@@ -3,6 +3,7 @@ import { isoDate, weekDates } from './storage'
 const SCOPE = 'https://www.googleapis.com/auth/calendar.events'
 const TOKEN_KEY = 'tommy_gcal'
 const EXP_KEY = 'tommy_gcal_exp'
+const ON_KEY = 'tommy_gcal_on'
 export const DEFAULT_GOOGLE_CLIENT_ID = '602305915619-ossmsvibhoo3e95bl88t2um9gk41dq3j.apps.googleusercontent.com'
 export const GOOGLE_JS_ORIGIN = 'https://imroma0620.github.io'
 export const GOOGLE_REDIRECT = 'https://imroma0620.github.io/tommy-asistente/'
@@ -52,6 +53,7 @@ function saveToken(access, expiresIn = 3600) {
   const seconds = Math.max(60, Number(expiresIn) || 3600)
   writeStore(TOKEN_KEY, access)
   writeStore(EXP_KEY, String(Date.now() + (seconds - 60) * 1000))
+  writeStore(ON_KEY, '1')
 }
 
 export function calendarConnected() {
@@ -82,21 +84,26 @@ export function captureCalendarRedirect() {
     window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
   } catch { /* Safari */ }
   const error = params.get('error')
-  if (error) return { ok: false, error: friendlyOAuthError(error) }
+  if (error) {
+    if (error === 'login_required' || error === 'interaction_required') {
+      return { ok: calendarConnected() }
+    }
+    return { ok: false, error: friendlyOAuthError(error) }
+  }
   const access = params.get('access_token')
   if (!access) return { ok: calendarConnected() }
   saveToken(access, params.get('expires_in'))
   return { ok: true }
 }
 
-function beginRedirect(clientId) {
+function beginRedirect(clientId, prompt = 'select_account') {
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth')
   url.searchParams.set('client_id', clientId.trim())
   url.searchParams.set('redirect_uri', googleRedirectUri())
   url.searchParams.set('response_type', 'token')
   url.searchParams.set('scope', SCOPE)
   url.searchParams.set('include_granted_scopes', 'true')
-  url.searchParams.set('prompt', 'select_account')
+  url.searchParams.set('prompt', prompt)
   window.location.assign(url.toString())
 }
 
@@ -111,12 +118,13 @@ export async function loadGoogle() {
   })
 }
 
-async function connectWithPopup(clientId) {
+async function connectWithPopup(clientId, silent = false) {
   await loadGoogle()
   return new Promise((resolve, reject) => {
     const client = window.google.accounts.oauth2.initTokenClient({
       client_id: clientId.trim(),
       scope: SCOPE,
+      prompt: silent ? '' : undefined,
       error_callback: (err) => {
         reject(new Error(friendlyOAuthError(err?.message || err?.type)))
       },
@@ -128,8 +136,23 @@ async function connectWithPopup(clientId) {
         }
       },
     })
-    client.requestAccessToken()
+    client.requestAccessToken(silent ? { prompt: '' } : undefined)
   })
+}
+
+export async function refreshCalendar(clientId) {
+  const id = (clientId || DEFAULT_GOOGLE_CLIENT_ID).trim()
+  if (token()) return token()
+  if (readStore(ON_KEY) !== '1' || !id) return ''
+  if (isPhone()) {
+    beginRedirect(id, 'none')
+    return ''
+  }
+  try {
+    return await connectWithPopup(id, true)
+  } catch {
+    return ''
+  }
 }
 
 export async function connectCalendar(clientId) {
@@ -150,6 +173,7 @@ export async function connectCalendar(clientId) {
 export function disconnectCalendar() {
   clearStore(TOKEN_KEY)
   clearStore(EXP_KEY)
+  clearStore(ON_KEY)
 }
 
 async function calendarFetch(path, options = {}) {
