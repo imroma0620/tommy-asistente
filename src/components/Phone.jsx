@@ -18,7 +18,7 @@ export default function Phone({ open, onClose }) {
         </div>
         {installed ? (
           <>
-            <p className="muted">Tommy ya está en este teléfono. Agenda, proyectos e ideas se sincronizan en la nube cuando configuras Supabase o la API (ver README). Para hablarle, el iPhone necesita datos móviles o Wi‑Fi.</p>
+            <p className="muted">Tommy ya está en este teléfono. Agenda, proyectos e ideas se sincronizan en la nube en la URL de Vercel (mismo enlace que instalaste). Para hablarle, el iPhone necesita datos móviles o Wi‑Fi.</p>
             <p className="muted phone-hint">Si no ves cambios recientes, cierra la app desde el conmutador de apps y ábrela otra vez desde el icono (Safari actualiza la PWA al reiniciar).</p>
           </>
         ) : onPhone ? (

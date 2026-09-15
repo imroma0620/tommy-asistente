@@ -26,8 +26,13 @@ async function redisGet() {
 
 async function redisSet(state) {
   if (!REDIS_URL || !REDIS_TOKEN) return false
-  const res = await fetch(`${REDIS_URL}/set/${encodeURIComponent(redisKey())}/${encodeURIComponent(JSON.stringify(state))}`, {
-    headers: { Authorization: `Bearer ${REDIS_TOKEN}` },
+  const res = await fetch(REDIS_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${REDIS_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(['SET', redisKey(), JSON.stringify(state)]),
   })
   const data = await res.json()
   return data.result === 'OK'
